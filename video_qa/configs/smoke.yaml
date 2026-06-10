@@ -1,0 +1,36 @@
+# Smoke test: validates the real training loop (optimizer + LoRA + checkpoint
+# save) end-to-end on data/smoke.json (sample_video.mp4 repeated). Not for real
+# training — just proves the loop runs and saves. Run from project root:
+#   .venv/bin/python video_qa/train.py --config video_qa/configs/smoke.yaml
+output_dir: runs/smoke
+
+encoder:
+  arch: vit_large
+  checkpoint: checkpoints/vitl.pt
+  img_size: 256
+  num_frames: 8
+  frame_step: 4
+  spatial_pool_stride: 2
+
+llm:
+  name: Qwen/Qwen2.5-7B-Instruct
+  load_in_4bit: true
+  use_lora: false               # projector-only (Stage 1 warmup); no peft needed
+
+projector:
+  hidden_dim: 2048
+  init_from: null
+
+data:
+  json: data/smoke.json
+  media_root: .                 # video path is relative to repo root
+
+optim:
+  lr: 2.0e-4
+  epochs: 1
+  batch_size: 1
+  grad_accum: 1                 # 4 samples -> 4 optimizer steps
+  warmup_ratio: 0.0
+  weight_decay: 0.0
+  num_workers: 0
+  log_every: 1

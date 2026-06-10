@@ -1,0 +1,42 @@
+# Python-generated files
+__pycache__/
+*.py[oc]
+build/
+dist/
+wheels/
+*.egg-info
+
+# Virtual environments
+.venv
+
+# Large data & model artifacts — NEVER commit these (datasets/ alone is >200 GB).
+# Accidentally staging them refills the disk with multi-GB git temp packs.
+datasets/
+checkpoints/
+runs/
+*.pt
+*.pth
+*.ckpt
+*.safetensors
+*.mp4
+*.avi
+*.mov
+
+# Experiment artifacts & caches (regenerable)
+mlflow.db
+mlruns/
+egoper_probe/features/
+video_qa/data/
+
+# Course material (not ours to redistribute)
+datasets.pdf
+
+# uv init boilerplate (unused)
+main.py
+
+# Separate tooling / node deps
+OverleafMCP/
+node_modules/
+
+# Notebook checkpoints
+.ipynb_checkpoints/

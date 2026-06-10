@@ -1,0 +1,37 @@
+# Stage 3: video QA. Projector + LoRA continued from stage 2.
+output_dir: runs/stage3
+
+encoder:
+  arch: vit_large
+  checkpoint: checkpoints/vitl.pt
+  img_size: 256
+  num_frames: 8
+  frame_step: 4
+  spatial_pool_stride: 2
+
+llm:
+  name: Qwen/Qwen2.5-7B-Instruct
+  load_in_4bit: true
+  use_lora: true
+  lora_r: 64
+  lora_alpha: 128
+  lora_dropout: 0.05
+  lora_init_from: runs/stage2/lora_adapters.pt
+
+projector:
+  hidden_dim: 2048
+  init_from: runs/stage2/projector.pt
+
+data:
+  json: data/activitynet_qa.json   # or nextqa.json
+  media_root: data/activitynet/videos
+
+optim:
+  lr: 2.0e-4
+  epochs: 3
+  batch_size: 1
+  grad_accum: 8                 # effective batch 8
+  warmup_ratio: 0.03
+  weight_decay: 0.0
+  num_workers: 4
+  log_every: 10

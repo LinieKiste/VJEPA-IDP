@@ -1,0 +1,33 @@
+# Stage 1: align projector only (image captioning). LLM frozen.
+output_dir: runs/stage1
+
+encoder:
+  arch: vit_large
+  checkpoint: checkpoints/vitl.pt
+  img_size: 256
+  num_frames: 8
+  frame_step: 4
+  spatial_pool_stride: 2        # 1024 -> 256 visual tokens
+
+llm:
+  name: Qwen/Qwen2.5-7B-Instruct
+  load_in_4bit: true
+  use_lora: false               # stage 1 trains projector only
+
+projector:
+  hidden_dim: 2048
+  init_from: null
+
+data:
+  json: data/llava_cc3m_595k.json
+  media_root: data/cc3m
+
+optim:
+  lr: 1.0e-3
+  epochs: 1
+  batch_size: 4
+  grad_accum: 8                 # effective batch 32
+  warmup_ratio: 0.03
+  weight_decay: 0.0
+  num_workers: 4
+  log_every: 10
