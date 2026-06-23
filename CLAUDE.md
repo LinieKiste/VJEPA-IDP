@@ -20,10 +20,23 @@ Key focus areas:
 - Generalization limits and error analysis
 - Possibly: hierarchical JEPA over different time horizons
 - use mlflow for experiment tracking
+- create a powerpoint slide each week before supervisor discussions
 
 ## Datasets
 Tracked in the Datasets DB: https://app.notion.com/p/0d5ea22cf2e948018b6f59819cb75a4a
 Main focus is EgoPER
+
+### On-disk storage layout
+Large datasets live on the **Storage HDD** (1.8 TB NTFS, label `Storage`, `/dev/sdb1`),
+auto-mounted at `/mnt/storage` via an `/etc/fstab` `nofail` entry (UUID 3E5EC6754FC651A5,
+ntfs3, uid/gid=1000). The 1 TB NVMe SSD (`/`) is kept free for active work.
+`datasets/` contains **symlinks** into `/mnt/storage/datasets/` so all code paths are unchanged:
+- `datasets/egoper` → `/mnt/storage/datasets/egoper` (214 GB, 816 files)
+- `datasets/eXprt-Daten` → `/mnt/storage/datasets/eXprt-Daten` (135 GiB, 87,700 files;
+  fetched via rclone from `tum-nas:/tumw/sgm/02_Studierende/Wallwitz/Dateneingang/eXprt-Daten`)
+
+If the egoper/eXprt symlinks ever look broken, the Storage drive isn't mounted —
+`sudo -A mount /mnt/storage` (use `sudo -A`; plain sudo hangs on the password prompt).
 
 ## Hardware
 - RTX 5060ti 16 GB VRAM (for training)
@@ -171,6 +184,52 @@ ROC-AUC/AP, logs to mlflow. Reuses `video_qa/model.py::build_encoder` (`checkpoi
     sequences), or task-step conditioning.
   - sklearn logreg on 24k-d is CPU-only, ~1 min/fit (~20 min for a 4×5 sweep); switch to a torch
     linear head on GPU if sweeping more.
+
+### exprt_probe/ — anomaly classification on the eXprt tea dataset (V-JEPA 2 + EK100 transfer)
+Second probe experiment, on the **eXprt** dataset (`datasets/eXprt-Daten/CAM1 Aufnahmen Patrick/`):
+egocentric tea-making, PNG frame sequences 1886×1056 @ 20 fps, **40 trials = 8 classes × 5 iters**
+(`Normal` + `2tb 2stir`, `Spüli`, `glass and fork`, `no tea bag`, `not enough water`, `perplexity`,
+`sequence`). Goal: classify anomaly vs normal (binary) + 8-way error type. Files mirror egoper_probe:
+`dataset.py` (mapping), `extract.py` (token grids), `head.py` (EK100 head), `pool.py` (pooled feats),
+`train.py` (probe), `README.md`. mlflow experiment `exprt_anomaly`.
+- **Labels are video-level only** (one `start_time` per trial = wall-clock, NOT within-video
+  localization). Trial→video had no id column + aborted re-takes (43 dirs vs 40 trials); PNGs carry no
+  capture date (mtime = rclone copy time), so `dataset.py` maps via the **dir-name timestamp**:
+  bucket each dir to the most-recent preceding trial start, keep the longest recording (drops aborts).
+  Verified clean 40↔40, 5/class. Persisted to `exprt_probe/mapping.json` + a `video_id` column added
+  to the CSV (frame folders untouched).
+- **Model:** frozen V-JEPA 2 ViT-L (NOT AC — AC needs robot actions, no classifier head). Head =
+  `AttentiveClassifier` (`vjepa2/src/models/attentive_pooler.py`) warm-started from the **EK100**
+  attentive probe (`checkpoints/ek100-vitl-256.pt`, dl.fbaipublicfiles.com/vjepa2/evals/; pooler
+  depth 4 / 16 heads / 1024-d, 49/49 params load, "action" query kept, fresh linear). EK100's verb/
+  noun/action linears discarded. `--train_pooler` would fine-tune the pooler (needs token grids).
+- **Pipeline note (perf):** caching full token grids `(n_clips,2048,1024)` fp16 = 9.8 GB; training a
+  head over them is **I/O-bound** (GPU idle, ~70 min/cold-fold). Fix: `pool.py` runs the frozen pooler
+  **once** → one 1024-d vector/clip (`pooled/`, 10 MB) → `train.py` is then seconds. `pool.py --pool
+  {ek100,mean,rand}` makes EK100 / plain-mean-of-tokens / random-pooler caches.
+- **Eval lesson (important):** **clip-level classification fails** — with whole-video labels and only
+  5 videos/class the probe overfits recording-specific appearance (in-sample AUC ~1.0, **held-out OOF
+  ~0.5**), and most "anomaly" clips are normal-looking tea-making. So the deliverable is **video-level**
+  (`train.py --level video`): mean-pool a video's clip embeddings → one clean-labelled vector (40),
+  LOO (binary) / stratified 5-fold (8-way). `--level clip` (StratifiedGroupKFold OOF) is kept to
+  document the negative.
+- **RESULTS (2026-06-18, torch linear probe, defaults lr 5e-3 / wd 1e-2):**
+  | level | task | mean-pool | EK100-pooled | random-pooler |
+  |---|---|---|---|---|
+  | video | binary AUC | **0.60** | 0.34 | 0.52 |
+  | video | 8-way acc (chance .125) | 0.39 | **0.49** | 0.43 |
+  | clip | binary AUC | 0.53 | 0.51 | 0.53 |
+  | clip | 8-way acc | 0.17 | 0.18 | 0.16 |
+  - **8-way error-type ≈ 0.49 acc (~4× chance) is the strong result**, and **EK100 warm-start helps**
+    (0.49 > 0.43 random > 0.39 mean) — the action-recognition pretraining transfers to error-type.
+  - **Binary anomaly is only weakly above chance** (~0.60 torch; **~0.70 with sklearn LogReg** lbfgs/L2,
+    which is more robust on 40 pts) and **high variance** (only 5 normal videos → LOO AUC SE ~±0.1).
+    Interestingly the EK100 attentive pooler **hurts** binary (0.34) — it compresses toward action type
+    and discards the subtle normal-vs-anomaly appearance cues that plain mean-pool keeps.
+  - **Verdict:** frozen V-JEPA features carry real *error-type* signal at the video level; *anomaly
+    detection* is hard here, bottlenecked by 5 normal videos + no within-video localization (vs EgoPER's
+    localized labels → 0.745). Next: more normal videos / temporal localization; or a torch-vs-sklearn
+    probe toggle (sklearn more robust at this N, torch gives the mlflow loss curve).
 
 ## Misc
 

@@ -33,3 +33,8 @@
 - Grounded VQA baseline numbers — finish scoring ask_slowfast + procedure grounding against GT labels so the probe-vs-VLM contrast is quantitative.
 
 - supervised vs. one-class — which framing should the writeup center; (c) how much effort the VQA contrast deserves given it's not the deliverable.
+
+
+
+visualisierung
+powerpoints

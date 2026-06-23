@@ -26,6 +26,10 @@ runs/
 mlflow.db
 mlruns/
 egoper_probe/features/
+exprt_probe/features/
+exprt_probe/pooled/
+exprt_probe/pooled_mean/
+exprt_probe/pooled_rand/
 video_qa/data/
 
 # Course material (not ours to redistribute)
