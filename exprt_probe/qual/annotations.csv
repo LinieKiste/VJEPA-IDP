@@ -1,0 +1,21 @@
+video,start_s,stop_s,action,notes,label,ek100_verbs,ek100_nouns,ek100_action
+Normal,18.0,24.0,,fill kettle with water,fill kettle with water,"take,put,close","maker:coffee,bottle,phone",take:maker:coffee
+Normal,33.0,42.0,,drops a sugar cube into mug,drops a sugar cube into mug,"take,close,put","bottle,maker:coffee,cupboard",open:cupboard
+Normal,49.0,55.0,,takes out teabag from container,takes out teabag from container,"take,put,close","bottle,phone,maker:coffee",take:bottle
+Normal,56.0,60.0,,places teabag into mug,places teabag into mug,"take,close,open","maker:coffee,bag,cupboard",open:cupboard
+Normal,68.0,80.0,,pours hot water into mug,pours hot water into mug,"put,take,close","maker:coffee,lid,bottle",take:maker:coffee
+Normal,80.0,87.0,,pours milk into mug,pours milk into mug,"take,put,close","bottle,phone,salt",put:phone
+Spueli,17.0,24.0,,fill kettle with water,fill kettle with water,"take,put,close","phone,bottle,maker:coffee",put:phone
+Spueli,30.0,32.0,,place mug on kitchen top,place mug on kitchen top,"take,put,close","maker:coffee,kettle,phone",take:maker:coffee
+Spueli,35.0,42.0,,pour soap into mug,pour soap into mug,"take,put,close","bottle,oil,lid",take:bottle
+Spueli,47.0,49.0,,open container,open container,"take,close,put","bottle,phone,maker:coffee",put:phone
+Spueli,50.0,53.0,,place teabag into mug,place teabag into mug,"take,close,put","bag,maker:coffee,bottle",take:bag
+Spueli,62.0,68.0,,pour water into mug,pour water into mug,"put,close,take","water,maker:coffee,kettle",pour:water
+Spueli,84.0,86.0,,drop sugar cube into mug,drop sugar cube into mug,"take,close,put","bottle,maker:coffee,phone",take:maker:coffee
+glass_and_fork,34.0,36.0,,close lid,close lid,"take,turn-off,open","cup,bottle,maker:coffee",take:maker:coffee
+glass_and_fork,60.0,64.0,,place tea bag in glass,place tea bag in glass,"take,close,put","maker:coffee,bottle,bag",take:maker:coffee
+glass_and_fork,74.0,80.0,,pour water into glass,pour water into glass,"put,take,close","kettle,maker:coffee,bottle",put:kettle
+glass_and_fork,84.0,88.0,,stir tea,stir tea,"take,close,put","maker:coffee,bottle,bag",take:maker:coffee
+2tb_2stir,50.0,60.0,,nothing/confused,nothing/confused,"take,turn-off,open","maker:coffee,phone,bottle",take:maker:coffee
+2tb_2stir,34.0,37.0,,place tea bag into mug,place tea bag into mug,"take,close,open","bottle,maker:coffee,cup",open:cupboard
+2tb_2stir,38.0,42.0,,place tea bag into mug,place tea bag into mug,"take,close,open","bag,maker:coffee,cupboard",open:cupboard

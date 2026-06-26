@@ -109,6 +109,28 @@ route (LLaVA-NeXT base) or a public stand-in long-video VLM.
   error_description[]}}`. Video has an error iff any action_type≠0; many segments ship only
   as frame zips (no .mp4) — filter to existing trim_videos. ~35 error + ~33 normal mp4s for Coffee.
 
+### egoper_vqa/ek100_tea* — zero-shot V-JEPA 2 + EK100 action recognition on EgoPER tea (presentation)
+Qualitative + quantitative check that **off-the-shelf V-JEPA 2 + the EK100 anticipation head reads
+tea-making actions** (motivates using EgoPER's localized action labels for low-level action labelling,
+since eXprt has only video-level scenario labels). Faithful pipeline: frozen ViT-L `target_encoder` +
+`predictor` (both in `checkpoints/vitl.pt`) via the repo's `vit_encoder_predictor_concat_ar`
+`AnticipativeWrapper` + trained EK100 `AttentiveClassifier` (`checkpoints/ek100-vitl-256.pt`,
+`classifiers[0]`), anticipate 1.0 s, 32f@8fps@256px. EPIC verb/noun/action indices decoded by rebuilding
+the dataloader's `enumerate(set(...))` dicts from `egoper_vqa/epic_meta/EPIC_100_train.csv` (+ verb/noun
+class CSVs); **verbs decode reliably (97, identity), nouns/actions are the train-derived subset**.
+- Files: `egoper_vqa/{ek100_tea.py (pipeline+decoders+load_clip), ek100_tea_viz.py (montage),
+  ek100_tea_eval.py (verb-accuracy)}`. Tea videos extracted to `egoper_vqa/tea_clips/` (the
+  `datasets/egoper` NTFS mount is **read-only** — extract `tea_videos.zip` to a writable dir). Figures →
+  `egoper_vqa/figures/`.
+- **Qualitative (montage):** predicts the right verbs (pour/take/insert/mix) on normal tea actions AND
+  flags the anomalies — "put mug in **microwave**" → `turn-on/press`, noun microwave; "stir with **knife**"
+  → noun `knife/scissors`. Only gap is EPIC vocab (tea→coffee, mug→cup, honey→oil).
+- **Quantitative (`ek100_tea_eval.py`, 28 tea videos, 220 GT action segments, hand-built EPIC-validated
+  `TEA_VERB_MAP`):** **top-1 verb acc 0.61, top-5 0.96** vs ~0.18 random — zero-shot, no fine-tuning.
+  Per-action top-1 high for measure-water 0.95 / trash-teabag 0.92 / hold-cup 0.82 / pour 0.76; low for
+  "place tea bag" 0.05 (predicts open/close of the wrapper; top-5=1.0) and "check water temp" 0.14
+  (genuinely subtle). Caveat: anticipation +1 s alignment; verbs are the fair metric; map is subjective.
+
 ### egoper_vqa/ — video-QA inference baseline on EgoPER
 Test dir for running a SOTA-class video LLM on EgoPER long clips with user-defined
 questions, scored against GT error labels. Uses the project `.venv` (no new installs).
@@ -187,7 +209,10 @@ ROC-AUC/AP, logs to mlflow. Reuses `video_qa/model.py::build_encoder` (`checkpoi
 
 ### exprt_probe/ — anomaly classification on the eXprt tea dataset (V-JEPA 2 + EK100 transfer)
 Second probe experiment, on the **eXprt** dataset (`datasets/eXprt-Daten/CAM1 Aufnahmen Patrick/`):
-egocentric tea-making, PNG frame sequences 1886×1056 @ 20 fps, **40 trials = 8 classes × 5 iters**
+tea-making, PNG frame sequences 1886×1056 @ 20 fps (orig 23.96 Hz, downsampled), **40 trials = 8 classes × 5 iters**.
+**VIEWPOINT (important): CAM1 is a FIXED THIRD-PERSON wide shot** (subject stands across the room, full
+body visible) — NOT egocentric. This is the opposite of EPIC-Kitchens/EgoPER (head-mounted, hands fill
+frame) and is the main reason off-the-shelf EK100 transfers poorly to eXprt (see qual finding below).
 (`Normal` + `2tb 2stir`, `Spüli`, `glass and fork`, `no tea bag`, `not enough water`, `perplexity`,
 `sequence`). Goal: classify anomaly vs normal (binary) + 8-way error type. Files mirror egoper_probe:
 `dataset.py` (mapping), `extract.py` (token grids), `head.py` (EK100 head), `pool.py` (pooled feats),
@@ -230,6 +255,29 @@ egocentric tea-making, PNG frame sequences 1886×1056 @ 20 fps, **40 trials = 8 
     detection* is hard here, bottlenecked by 5 normal videos + no within-video localization (vs EgoPER's
     localized labels → 0.745). Next: more normal videos / temporal localization; or a torch-vs-sklearn
     probe toggle (sklearn more robust at this N, torch gives the mlflow loss curve).
+
+### exprt_probe/qual + ek100_label.py — qualitative action labelling on eXprt (zero-shot EK100)
+Manual-annotation workflow (eXprt has no within-video action labels): render a few videos to local mp4
+(`exprt_probe/qual/watch/`; `datasets/` is read-only, ffmpeg from PNGs at 20fps so player-clock = real
+time), user writes start/stop+action in `exprt_probe/qual/annotations.csv`, then `ek100_label.py` runs the
+faithful EK100 pipeline (reuses `egoper_vqa/ek100_tea.py`) over each segment → top verb/noun/action + a
+montage, and writes predictions back as CSV columns.
+- **KEY QUAL FINDING (zero-shot EK100, ~20 hand-annotated eXprt segments):** transfers **much worse than
+  on EgoPER tea** (which scored top-5 verb 0.96). Most predictions collapse to generic `take/put/close`
+  and the noun fixates on **`maker:coffee`** (the coffee machine in the background) — because **CAM1 is
+  third-person/wide**, so hand-object actions are tiny and the scene dominates. Only big unambiguous cues
+  land (one `pour:water`; `bottle`/`oil` for soap; `bag` for teabag). **Cause = viewpoint mismatch, not a
+  code bug.**
+- **FROZEN-EMBEDDING PROBE (`action_probe.py`, mlflow `exprt_action_probe`):** answers "do the V-JEPA
+  *embeddings* carry the action even though the egocentric EK100 *head* fails?" Map each annotated segment
+  → an EK100-verb class; logreg on the frozen V-JEPA encoder mean-pool (1024-d). **Leave-one-VIDEO-out =
+  0.74** (== segment-LOO; permutation null 0.30, **p<0.003**) vs zero-shot EK100 top-1 **0.05** / majority
+  0.42. So the embeddings DO carry a real, cross-video-generalizing signal the head misses — NOT just
+  within-video overfitting (video-LOO controls it; in-sample 1.0 is vacuous in 1024-d).
+  **Caveats (narrow pilot):** only 19 segments / 1 subject / same room+camera; 4 of 6 classes are
+  singletons (LOO can't get them → caps acc ~0.79), so this really shows **pour-vs-put** separability, not
+  6-way recognition. Next: label more (populate `take/open/close/mix` + anomaly actions soap/fork/2-teabag),
+  ideally a 2nd subject/session to test scene generalization, then video-LOO becomes a real multiclass number.
 
 ## Misc
 
