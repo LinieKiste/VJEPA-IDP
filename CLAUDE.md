@@ -278,6 +278,136 @@ montage, and writes predictions back as CSV columns.
   singletons (LOO can't get them → caps acc ~0.79), so this really shows **pour-vs-put** separability, not
   6-way recognition. Next: label more (populate `take/open/close/mix` + anomaly actions soap/fork/2-teabag),
   ideally a 2nd subject/session to test scene generalization, then video-LOO becomes a real multiclass number.
+- **AUGMENTED probe (`action_probe_aug.py`, mlflow run `augmented_k128`):** pixel-space augmentation
+  (horizontal mirror + temporal clip-length jitter 0.8-1.2x + random 256-crop from a 288 frame), re-encoded
+  through the frozen encoder, k=128 aug views/segment; train only on augmented TRAIN videos, test the clean
+  held-out video. **Video-LOO 0.74 -> 0.79** (perm null 0.28, p<0.005) on the FIRST label set (19 seg, 4
+  singleton classes). 0.79 was the data-imposed ceiling there: pour 7/7 and put 8/8 perfect (augmentation
+  fixed the one put->take miss); the only remaining errors were the 4 single-example classes LOO can't recover.
+  PERF NOTE: encoding 2432 clips = ~7 min, but the 200-rep permutation at k=128 dragged total runtime to
+  ~98 min — cap perm reps / use a lighter null next time.
+- **More labels (2026-06-26, 24 seg, all 6 classes now >=2 videos; `annotations.csv` is now a single free-text
+  `label` col, schema-robust in both probe scripts):** removing the singleton cap turns it into a genuine 6-way
+  problem (chance 0.21, majority 0.33). **Augmented video-LOO = 0.71 (no-aug 0.62, perm null 0.21, p=0.000,
+  k=128 perm=50, runtime ~34 min).** Headline is NOT "0.79->0.71": the old 0.79 was effectively pour-vs-put
+  binary (singletons unrecoverable); 0.71 is a real multiclass number. Per-class (LOO confusion): pour 7/7,
+  open 2/2, put 7/8 perfect/strong; **mix 1/3, close 0/2, take 0/2 still fail** — 2 videos is the bare minimum
+  that LETS LOO learn a class, but for visually-subtle small-hand-motion classes (close lid / take mug, both
+  look like a generic "put") holding one out leaves only 1 training video. **Next minimal step: a THIRD video
+  each for close + take** (so LOO leaves 2); pour/put/open are already solid.
+
+### Direction after 26.06.2026 supervisor meeting (Notion notes + design dialogue)
+Supervisor's 5 short prompts: **CLIP for videos/actions**, **soft labelling**, **EK100 finetuning
+possible gains**, **AC / auxiliary (sensor) inputs**, **EK100 outputs anpassen**. Mapped to state:
+- **Chosen next thread = open-vocabulary action labelling** (fixes the #1 documented eXprt limitation:
+  EK100's fixed EPIC vocab can't express tea nouns — mug/teabag/honey). Model that runs in this env:
+  `XCLIPModel`/`SiglipModel`/`CLIPModel` all import fine in transformers 5.10.2 (X-CLIP is video-native
+  zero-shot action recognition — the natural pick; SigLIP per-frame is the fallback).
+- **KEY DESIGN DECISION (locked): do NOT project V-JEPA embeddings into text space.** That step is
+  lossy AND makes the text encoder a confound (you'd measure "how well V-JEPA fits CLIP's geometry",
+  not V-JEPA itself). Instead: **soft kNN in V-JEPA's OWN latent space** — retrieve nearest labelled
+  segments by cosine on the full frozen embedding (zero backbone info loss), aggregate neighbours'
+  human free-text labels similarity-weighted (open-vocab, real nouns). CLIP text encoder is used ONLY
+  as a label-vs-label ruler; it sits identically on prediction and GT sides so it cancels across
+  comparisons and can't bias the backbone score (DINO-style kNN eval, soft + open-vocab variant).
+  Swap the retrieval space (V-JEPA vs X-CLIP-video vs random) under the SAME ruler to isolate the
+  backbone's contribution. Metrics (video-LOO): soft relevance@k, pred-label cosine, coarse top-1
+  (comparable to the 0.71 probe), shuffle null. Honest limit: native-kNN open-vocab only covers phrases
+  already in the gallery (grows as you annotate); genuinely-unseen nouns would need the lossy projection.
+  Soft *targets over a fixed class set* were considered and rejected — user wants similarity-weighted
+  neighbourhood info + open vocab, not label-smoothed 6-way. (Impl `knn_label.py` drafted but not yet
+  committed/run — user paused before running.)
+- **AC (V-JEPA 2-AC) gives NO gain for labelling/retrieval:** AC freezes the SAME encoder and only adds
+  an action-conditioned *predictor* (needs robot end-effector actions we don't have; trained on Droid
+  robot data, won't transfer to third-person kitchen video; it's a planning/MPC tool, not a
+  representation tool). Retrieval embeddings are identical to plain V-JEPA 2. AC would only matter for a
+  *different* task — action-conditioned predictive anomaly detection with a fabricated action signal
+  (ties to the "auxiliary inputs" note), a domain-transfer gamble, not this labeller.
+- **Auxiliary inputs = there are none natively** (eXprt is CAM1 PNG frames only); the open question is
+  whether to *fabricate* one (best-motivated: a hand-trajectory/pose channel concatenated to frozen
+  V-JEPA feats — targets exactly the failing close/take small-hand-motion classes) and ablate its effect.
+  Caveat: any video-derived auxiliary adds no new information, only explicit inductive bias.
+- Submission will need a **Gantt diagram** (per Notion).
+
+## Direction after 05.07.2026 — Pouring volume/flow estimation (LOCKED, NEW centerpiece)
+Supervisor + user chose **ONE** direction to shrink the solution space: **pouring volume / flow
+estimation from a frozen V-JEPA 2 backbone** (dropped the V-JEPA-latent *anomaly* thread — the
+relevant anomalies are trajectory-based and would need hierarchical JEPA + a hand-trajectory
+regressor via a Cosy transform, too big for the IDP). Pouring is "the most innovative field, could
+make a nice small publication." Plan (supervisor): **pretrain a probe on simulation volume data →
+fine-tune on own-lab data** (rig is plug&play in their lab). All work now lives under **`pouring/`**
+(consolidated this session — repo had too many open experiments; `pour_probe/` moved to
+`pouring/pour_probe/`, its `ROOT` is now `parents[2]`).
+
+### Datasets for pouring (survey)
+- **UWLPD** (UW Liquid Pouring Dataset, Schenck & Fox) — downloaded to `datasets/UWLPD/` = the
+  **Real Robot Dataset**, `large_bowls` subset: 5 zips (source→target `bowl←{bottle,cup,mug}`,
+  `fruitBowl←{bottle,cup}`), 36 conditions each = **180 sequences** (~61 GB, kept zipped). Condition
+  = fill`{empty,30,60,90%}`×profile`{dump,hold,partial}`×motion`{minimal,moderate,high}` (from
+  `render_v3/sim_args.txt`; **despite "sim_args"/ROS topics these are real Baxter recordings, actually
+  a person pouring in a 3rd-person kitchen**). Per frame (~490 @ 640×480): `data*.jpg` RGB,
+  **`ground_truth*.png` = binary liquid mask (liquid = BLUE `(0,0,255,255)` on transparent black —
+  `convert("L")` collapses it to ~29 and ERASES it; count `max(RGB)>127`)**. **No mL here** (fill %
+  is fixed 30/60/90) → volume/flow **must be derived from the mask** (proxy). The clean **mL** trace
+  lives only in UWLPD's separate *Simulated* dataset (`bowl_volume.csv`, per-frame m³) — requested
+  from connor.schenck@gmail.com, **not yet in hand**.
+- **SimLiquid** (github.com/Jiaviz/SimLiquid, "A Simulation-Based Liquid Perception Pipeline") —
+  cloned to `pouring/SimLiquid/`, **SET UP + VALIDATED (2026-07-05)**. A **BlenderProc** renderer that
+  generates liquid-in-cup images (960×600 RGB + depth/normals + COCO/BOP) with **per-cup volume labels
+  in mL** (`volumes.txt`, mesh `bm.calc_volume()*1e6`). **This is the clean-volume sim-pretrain source.**
+  Setup done:
+  - `blenderproc` installed via `uv pip` into the **project `.venv`** (NOT a new conda env — user
+    prefers one venv per project). BlenderProc auto-installed its own **Blender 4.2.1** to
+    `~/blender/` on first run (+ tqdm into Blender's python).
+  - Assets: `blenderproc download haven liquid_render/assets/hdri --types {hdris,textures}
+    --resolution 1k` → 977 HDRIs (1.5 GB) + 213 complete textures (0.6 GB), 2.1 GB total. Config's
+    `hdri_path: assets/hdri` = the haven root (both `hdris/` + `textures/` live under it; the README's
+    `assets/haven` name is just cosmetic). Textures capped (full set ~20 GB); code only needs a few
+    (random desk material, `self.textures` line ~225). `liquids.blend` copied from `~/Downloads/` to
+    `liquid_render/blender_projs/liquids.blend`.
+  - **Code fix (committed to the working tree):** `liquid_render.py` imported
+    `object_print3d_utils.mesh_helpers` — that 3D-Print-Toolbox addon is **not bundled in Blender 4.2**.
+    Inlined its `bmesh_copy_from_object` (world-transform + apply-modifiers bmesh copy → `calc_volume`);
+    only thing SimLiquid used from it.
+  - **Render VALIDATED:** `blenderproc run liquid_render.py --cfg cfgs/liquid.yaml -et hdri -ns 3 -pn 2
+    -o outputs/samples` → photoreal 960×600 images + `volumes.txt` (varied cups: coke/milk/water bottle,
+    wine/shot glass, mug; liquids water/juice/wine/milk; e.g. milk 777.3 mL, water 1585 mL), ~1–3 s/frame
+    GPU. Samples in `outputs/samples/`. Full dataset = `./render.sh` (1000 scenes ×10 poses ≈ 10k images,
+    several hours) — **not yet run** (user paused; 2026-07-06).
+  - **pacman Blender CANNOT drive BlenderProc — don't retry:** system Blender is 5.1.2/py3.14 (pacman
+    `17:5.1.2-1`); BlenderProc 2.8.0 needs **portable Blender 4.2/py3.11** with the bundled-python layout
+    `<blender>/<ver>/python/bin/`. Arch's package builds against system python → no such layout →
+    `--custom-blender-path` can't work. So SimLiquid keeps the auto-downloaded portable 4.2.1 in
+    `~/blender/` (user confirmed OK; pacman 5.1.2 untouched for other use).
+- Also noted by supervisor: MultimodalPouring (github.com/lianghongzhuo, requested), Schenck's
+  "Perception & Reasoning about Liquids" 4.5M-image set. Own self-made dataset likely the endgame.
+
+### pouring/pour_probe/ — frozen V-JEPA 2 pouring flow/volume regression (UWLPD)
+Mirrors `exprt_probe/`: sliding-window frozen ViT-L token grids (`extract.py`, reuses
+`video_qa/model.py::build_encoder`) → frozen attentive pooler (`head.py`/`pool.py`, `AttentiveClassifier`
+`num_outputs=1`, EK100 warm-start) → SmoothL1 **regression** linear probe (`train.py`), GroupKFold by
+sequence, mlflow `pour_probe`. Windows in FRAME units (real-robot fps unreliable): 32-frame span→16
+sampled, stride 16. `dataset.py` reads frames straight from the zips; `attn_map.py` renders the pooler
+cross-attention overlay (Stage-1 interpretability gate). **Target = mask-derived PROXY** (`flow` = mean
+liquid-mask area/window; `volume` = running-max area) — a smoke test until the real mL arrives.
+- **RESULTS (2026-07-05, all 180 seqs → 5,399 windows, GroupKFold-5 by sequence, OOF):**
+  | target | features | R² | MAE/baseline |
+  |---|---|---|---|
+  | flow   | mean-pool  | **0.80** | 0.37 |
+  | flow   | EK100-pool | 0.775 | 0.40 |
+  | volume | mean-pool  | 0.773 | 0.40 |
+  | volume | EK100-pool | 0.754 | 0.41 |
+  Frozen V-JEPA linearly predicts the liquid flow/volume proxy at **R²≈0.75–0.80** (MAE ~0.4× the
+  predict-mean baseline), generalizing across held-out sequences → **the representation carries pouring
+  signal**. Plain **mean-pool ≥ frozen EK100 pooler** (same as exprt binary — the action pooler
+  compresses away appearance detail). Attention map of the *frozen* pooler is **diffuse** (not liquid-
+  localized) — expected, it wasn't trained on pouring; faithful Stage-1 gate needs `--train_pooler` (a
+  pooler trained on the real mL target, deferred). Proxy result, not the deliverable.
+- **INFRA LESSON (important):** the `/mnt/storage` **NTFS (ntfs3) driver HANGS on sustained writes** —
+  process goes uninterruptible `D`-state in `do_truncate`, un-killable, corrupts the in-flight file
+  (crashed extraction at 130/180 and pooling at ~89/180, twice). **Reads are fine.** Fix: **all pouring
+  caches now on the SSD** at `/home/casimir/.cache/pour_probe/{features,pooled,pooled_mean}` (22 GB;
+  override via `$POUR_FEATURES_DIR`/`$POUR_POOLED_ROOT`). Don't write datasets/caches to `/mnt/storage`.
 
 ## Misc
 
