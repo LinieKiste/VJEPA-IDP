@@ -106,7 +106,7 @@ def main():
         "mae_vs_baseline": float(mae / base_mae), "r2": float(r2), "target_std_px": ystd,
     }
 
-    mlflow.set_experiment("pour_probe")
+    import mlflow_util; mlflow_util.setup("pour_probe")
     with mlflow.start_run(run_name=f"{args.target}_{args.features_dir}"):
         mlflow.log_params({
             "target": args.target, "features_dir": args.features_dir,

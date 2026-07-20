@@ -9,6 +9,8 @@ wheels/
 # Virtual environments
 .venv
 
+.env
+
 # Large data & model artifacts — NEVER commit these (datasets/ alone is >200 GB).
 # Accidentally staging them refills the disk with multi-GB git temp packs.
 datasets/
@@ -31,6 +33,18 @@ exprt_probe/pooled/
 exprt_probe/pooled_mean/
 exprt_probe/pooled_rand/
 video_qa/data/
+
+# QC / diagnostic images — regenerated on every viz run, pure noise in git status
+qc_*.png
+qc_*.pdf
+**/qc/
+
+# External reference repos cloned for reading only (each has its own .git)
+third_party/
+
+# Regenerable per-video OCR output (final dataset lives on the NAS; the human-verified
+# corrections in clip_split/ocr_overrides.json + annotations.json ARE tracked)
+pouring/clip_split/ocr/
 
 # Course material (not ours to redistribute)
 datasets.pdf

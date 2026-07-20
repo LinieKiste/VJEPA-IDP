@@ -4,3 +4,6 @@
 [submodule "pouring/SimLiquid"]
 	path = pouring/SimLiquid
 	url = https://github.com/Jiaviz/SimLiquid
+[submodule "OCR_Scale_REader"]
+	path = OCR_Scale_REader
+	url = git@github.com:Paetriq/OCR_Scale_REader.git

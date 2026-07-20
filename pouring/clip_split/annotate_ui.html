@@ -1,0 +1,486 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>pour annotator</title>
+<style>
+  * { box-sizing: border-box; }
+  body { margin:0; font:13px/1.4 system-ui,sans-serif; background:#16181c; color:#d8dbe0; display:flex; height:100vh; }
+  #sidebar { width:230px; min-width:230px; overflow-y:auto; background:#1d2026; border-right:1px solid #2c3038; }
+  #sidebar h1 { font-size:14px; padding:10px 12px 6px; margin:0; color:#9aa3b2; }
+  .trial { padding:7px 12px; cursor:pointer; border-bottom:1px solid #23262d; display:flex; justify-content:space-between; }
+  .trial:hover { background:#262a33; }
+  .trial.active { background:#2d3442; }
+  .trial .done { color:#57c26b; } .trial .part { color:#d9a441; }
+  #main { flex:1; display:flex; flex-direction:column; min-width:0; }
+  #videowrap { flex:1; display:flex; min-height:0; }
+  video { flex:1; min-width:0; background:#000; object-fit:contain; }
+  #panel { width:300px; min-width:300px; overflow-y:auto; background:#1d2026; border-left:1px solid #2c3038; padding:10px; }
+  #timeline { height:190px; background:#101216; border-top:1px solid #2c3038; position:relative; }
+  canvas { display:block; width:100%; height:100%; cursor:crosshair; }
+  .ev { padding:6px 8px; margin:4px 0; border:1px solid #2c3038; border-radius:5px; cursor:pointer; }
+  .ev:hover { border-color:#4a5262; }
+  .ev.sel { border-color:#4f8ef7; background:#232a38; }
+  .ev.done { border-left:4px solid #57c26b; }
+  .ev.exc { opacity:.45; border-left:4px solid #c25757; }
+  .ev .w { font-weight:600; }
+  button { background:#2d3442; color:#d8dbe0; border:1px solid #3a4252; border-radius:4px; padding:4px 9px; cursor:pointer; margin:2px 2px 2px 0; font-size:12px; }
+  button:hover { background:#3a4252; }
+  button.primary { background:#2e5c39; border-color:#3d7a4c; }
+  button.danger { background:#5c2e2e; border-color:#7a3d3d; }
+  input[type=number]{ width:80px; background:#101216; color:#fff; border:1px solid #3a4252; border-radius:4px; padding:3px 6px; font-size:14px; }
+  label { display:inline-flex; align-items:center; gap:5px; margin-right:10px; user-select:none; }
+  #edbox { border-top:1px solid #2c3038; margin-top:8px; padding-top:8px; }
+  #status { position:fixed; right:310px; top:8px; padding:3px 10px; border-radius:4px; background:#2e5c39; opacity:0; transition:opacity .3s; font-size:12px; }
+  .hint { color:#6b7484; font-size:11px; margin-top:8px; }
+  .measured { color:#9aa3b2; font-size:11px; }
+</style>
+</head>
+<body>
+<div id="sidebar"><h1>Trials</h1><div id="trials"></div>
+  <div class="hint" style="padding:10px 12px">
+    <b>Keys</b><br>space = play/pause<br>&larr;/&rarr; = &plusmn;0.1 s (shift: 1 s)<br>
+    [ / ] = set start/end of selected event to playhead<br>
+    n = new event at playhead<br>c = toggle completed<br>
+    e = OCR edit mode (drag on timeline = select samples,<br>
+    &nbsp;&nbsp;set value / mark invalid &rarr; filter re-runs live)<br>
+    wheel on timeline = zoom, drag background = pan
+  </div>
+</div>
+<div id="main">
+  <div id="videowrap"><video id="vid" controls muted preload="auto"></video>
+    <div id="panel">
+      <div id="trialtitle" style="font-weight:600;margin-bottom:6px">no trial loaded</div>
+      <div id="readout" style="font:13px monospace;background:#101216;border:1px solid #2c3038;border-radius:5px;padding:6px 8px;margin-bottom:6px">–</div>
+      <button id="addbtn" class="primary">+ new event at playhead (n)</button>
+      <div id="evlist"></div>
+      <div id="edbox" style="display:none">
+        <div style="font-weight:600" id="edtitle"></div>
+        <div style="margin:6px 0">
+          start <span id="edstart"></span>s &nbsp; end <span id="edend"></span>s
+          <div><button id="setstart">[ set start = playhead</button>
+               <button id="setend">] set end = playhead</button></div>
+          <div><button id="gostart">&#8677; go to start</button>
+               <button id="goend">&#8676; go to end</button></div>
+        </div>
+        <div style="margin:6px 0">
+          final weight <input type="number" id="edweight" step="0.5"> g
+          <div class="measured" id="edmeasured"></div>
+        </div>
+        <div style="margin:6px 0">
+          <label><input type="checkbox" id="edcompleted"> completed (c)</label>
+          <label><input type="checkbox" id="edexcluded"> excluded</label>
+        </div>
+        <button id="delbtn" class="danger">delete event</button>
+      </div>
+      <div id="ocrbox" style="border-top:1px solid #2c3038;margin-top:8px;padding-top:8px">
+        <label><input type="checkbox" id="showraw" checked> show raw OCR points</label>
+        <div><button id="editmode">OCR edit mode (e): OFF</button></div>
+        <div id="ocrctl" style="display:none">
+          <div class="hint">drag on the timeline to select samples; click = one display sample</div>
+          <div style="margin:4px 0">selection: <span id="selrange">–</span></div>
+          <div>
+            value <input type="number" id="ocrval" step="1"> g
+            <button id="ocrset" class="primary">set</button>
+            <button id="ocrinval">mark invalid</button>
+            <button id="ocrclear">clear edits in range</button>
+          </div>
+          <div id="patchlist" style="margin-top:6px"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div id="timeline"><canvas id="cv"></canvas></div>
+</div>
+<div id="status">saved</div>
+<script>
+"use strict";
+const $ = id => document.getElementById(id);
+const vid = $("vid"), cv = $("cv"), ctx = cv.getContext("2d");
+
+let trials = [], cur = null;       // cur = {trial, trace, events}
+let sel = null;                    // selected event object
+let view = {t0: 0, t1: 60};        // visible time window
+let drag = null;                   // {mode:'start'|'end'|'pan'|'ocrsel', ...}
+let saveTimer = null;
+let editMode = false;              // OCR sample-editing mode
+let ocrSel = null;                 // {t0,t1} selected sample range
+
+// ---------- helpers ----------
+function median(a){ if(!a.length) return NaN; const s=[...a].sort((x,y)=>x-y); return s[(s.length-1)>>1]; }
+function traceRange(t0,t1){ const {t,w}=cur.trace, out=[]; for(let i=0;i<t.length;i++) if(t[i]>=t0&&t[i]<=t1) out.push(w[i]); return out; }
+function measure(ev){
+  const base = median(traceRange(ev.clip_start_s, ev.clip_start_s+0.6));
+  const plat = median(traceRange(ev.clip_end_s-0.6, ev.clip_end_s));
+  return {base, plat, delta: plat-base};
+}
+function fmt(x){ return (Math.round(x*100)/100).toFixed(2); }
+function idxAt(tm){                       // nearest trace index (binary search)
+  const t = cur.trace.t; let lo=0, hi=t.length-1;
+  while(lo<hi){ const m=(lo+hi)>>1; t[m]<tm ? lo=m+1 : hi=m; }
+  return (lo>0 && Math.abs(t[lo-1]-tm)<Math.abs(t[lo]-tm)) ? lo-1 : lo;
+}
+function valueAt(tm){                     // curve values at playhead time
+  if(!cur || !cur.trace.t.length) return null;
+  const i = idxAt(tm);
+  const out = {t: cur.trace.t[i], w: cur.trace.w[i], raw: cur.trace.raw ? cur.trace.raw[i] : null, adj: null};
+  if(sel && !sel.excluded && tm>=sel.clip_start_s && tm<=sel.clip_end_s){
+    const m = measure(sel);
+    if(!isNaN(m.delta) && Math.abs(m.delta)>=5 && Math.abs(sel.weight_g-m.delta)>0.5)
+      out.adj = m.base + (out.w-m.base)*(sel.weight_g/m.delta);
+  }
+  return out;
+}
+
+// ---------- trials sidebar ----------
+async function loadTrials(){
+  trials = await (await fetch("/api/trials")).json();
+  const el = $("trials"); el.innerHTML = "";
+  for(const t of trials){
+    const d = document.createElement("div");
+    d.className = "trial" + (cur && cur.trial.stem===t.stem ? " active":"");
+    const cls = t.n_completed>=t.n_events && t.n_events>0 ? "done" : (t.n_completed>0?"part":"");
+    d.innerHTML = `<span>trial ${t.trial_id} <small>${t.source_obj}&rarr;${t.target_obj}</small></span>
+                   <span class="${cls}">${t.n_completed}/${t.n_events}</span>`;
+    d.onclick = ()=>loadTrial(t.stem);
+    el.appendChild(d);
+  }
+}
+async function loadTrial(stem){
+  cur = await (await fetch("/api/trial/"+stem)).json();
+  sel = null;
+  vid.src = "/video/" + stem + ".mp4";
+  view = {t0: 0, t1: cur.trial.duration_s};
+  $("trialtitle").textContent = `trial ${cur.trial.trial_id} — ${cur.trial.source_obj}→${cur.trial.target_obj} (${cur.trial.duration_s.toFixed(0)} s)`;
+  ocrSel = null;
+  renderEvents(); renderPatches(); loadTrials(); draw();
+}
+
+// ---------- event list / editor ----------
+function renderEvents(){
+  const el = $("evlist"); el.innerHTML = "";
+  cur.events.sort((a,b)=>a.clip_start_s-b.clip_start_s);
+  cur.events.forEach((ev,i)=>{
+    const d = document.createElement("div");
+    d.className = "ev" + (ev===sel?" sel":"") + (ev.completed?" done":"") + (ev.excluded?" exc":"");
+    const src = ev.source==="manual" ? " &#9998;" : "";
+    d.innerHTML = `#${i+1}${src} &nbsp; [${fmt(ev.clip_start_s)} – ${fmt(ev.clip_end_s)}] s
+                   &nbsp; <span class="w">${ev.weight_g} g</span>
+                   ${ev.flags?`<div class="measured">${ev.flags}</div>`:""}`;
+    d.onclick = ()=>{ selectEvent(ev); vid.currentTime = Math.max(0, ev.clip_start_s); };
+    el.appendChild(d);
+  });
+  syncEditor();
+}
+function selectEvent(ev){ sel = ev; renderEvents(); zoomToSel(); draw(); }
+function zoomToSel(){
+  if(!sel) return;
+  const len = sel.clip_end_s - sel.clip_start_s;
+  if(sel.clip_start_s < view.t0 || sel.clip_end_s > view.t1 || (view.t1-view.t0) > 6*len){
+    view.t0 = Math.max(0, sel.clip_start_s - 1.5*len);
+    view.t1 = Math.min(cur.trial.duration_s, sel.clip_end_s + 1.5*len);
+  }
+}
+function syncEditor(){
+  const box = $("edbox");
+  if(!sel){ box.style.display="none"; return; }
+  box.style.display="block";
+  $("edtitle").textContent = "event " + sel.id;
+  $("edstart").textContent = fmt(sel.clip_start_s);
+  $("edend").textContent = fmt(sel.clip_end_s);
+  if(document.activeElement !== $("edweight")) $("edweight").value = sel.weight_g;
+  $("edcompleted").checked = sel.completed;
+  $("edexcluded").checked = sel.excluded;
+  const m = measure(sel);
+  $("edmeasured").textContent =
+    `trace: base ${isNaN(m.base)?"?":m.base.toFixed(1)} g, plateau ${isNaN(m.plat)?"?":m.plat.toFixed(1)} g, ` +
+    `Δ ${isNaN(m.delta)?"?":m.delta.toFixed(1)} g` +
+    (sel.auto_weight_g!==undefined && sel.weight_g!=sel.auto_weight_g ? ` (auto was ${sel.auto_weight_g})` : "");
+}
+function touched(){ renderEvents(); draw(); scheduleSave(); }
+
+$("edweight").oninput = ()=>{ if(sel){ sel.weight_g = parseFloat($("edweight").value)||0; scheduleSave(); draw(); } };
+$("edcompleted").onchange = ()=>{ if(sel){ sel.completed = $("edcompleted").checked; touched(); loadTrials(); } };
+$("edexcluded").onchange = ()=>{ if(sel){ sel.excluded = $("edexcluded").checked; touched(); loadTrials(); } };
+$("setstart").onclick = ()=>{ if(sel){ sel.clip_start_s = Math.min(vid.currentTime, sel.clip_end_s-0.5); touched(); } };
+$("setend").onclick = ()=>{ if(sel){ sel.clip_end_s = Math.max(vid.currentTime, sel.clip_start_s+0.5); touched(); } };
+$("gostart").onclick = ()=>{ if(sel) vid.currentTime = sel.clip_start_s; };
+$("goend").onclick = ()=>{ if(sel) vid.currentTime = sel.clip_end_s; };
+$("delbtn").onclick = ()=>{ if(sel && confirm("delete event "+sel.id+"?")){
+  cur.events = cur.events.filter(e=>e!==sel); sel=null; touched(); loadTrials(); } };
+$("addbtn").onclick = addEvent;
+
+// ---------- OCR sample editing ----------
+function setEditMode(on){
+  editMode = on;
+  $("editmode").textContent = "OCR edit mode (e): " + (on?"ON":"OFF");
+  $("editmode").style.background = on ? "#5c5c2e" : "";
+  $("ocrctl").style.display = on ? "block" : "none";
+  cv.style.cursor = on ? "text" : "crosshair";
+  draw();
+}
+$("editmode").onclick = ()=>setEditMode(!editMode);
+$("showraw").onchange = draw;
+
+function ocrSelText(){
+  if(!ocrSel) return "–";
+  return `${fmt(ocrSel.t0)} – ${fmt(ocrSel.t1)} s  (${Math.max(1,Math.round((ocrSel.t1-ocrSel.t0)*30))} samples)`;
+}
+function renderPatches(){
+  $("selrange").textContent = ocrSelText();
+  const el = $("patchlist"); el.innerHTML = "";
+  (cur.trace.patches||[]).forEach((p,i)=>{
+    const d = document.createElement("div");
+    d.className = "measured";
+    d.innerHTML = `${fmt(p.t0)}–${fmt(p.t1)} s → <b>${p.value===null?"invalid":p.value+" g"}</b>
+      <button style="padding:0 6px" data-i="${i}">✕</button>`;
+    d.querySelector("button").onclick = ()=>{ cur.trace.patches.splice(i,1); savePatches(); };
+    el.appendChild(d);
+  });
+}
+async function savePatches(){
+  const r = await (await fetch("/api/ocr/"+cur.trial.stem,
+      {method:"POST", body: JSON.stringify(cur.trace.patches||[])})).json();
+  cur.trace = r.trace;               // re-filtered trace comes back
+  renderPatches(); syncEditor(); draw();
+  const s=$("status"); s.textContent="re-filtered"; s.style.opacity=1;
+  setTimeout(()=>{ s.style.opacity=0; s.textContent="saved"; }, 900);
+}
+function addPatch(value){
+  if(!ocrSel) return alert("select a sample range on the timeline first");
+  cur.trace.patches = cur.trace.patches||[];
+  cur.trace.patches.push({t0: Math.round(ocrSel.t0*1000)/1000,
+                          t1: Math.round(ocrSel.t1*1000)/1000, value});
+  savePatches();
+}
+$("ocrset").onclick = ()=>{
+  const v = parseFloat($("ocrval").value);
+  if(isNaN(v)) return alert("enter a value");
+  addPatch(v);
+};
+$("ocrinval").onclick = ()=>addPatch(null);
+$("ocrclear").onclick = ()=>{
+  if(!ocrSel) return;
+  cur.trace.patches = (cur.trace.patches||[]).filter(p=>p.t1<ocrSel.t0 || p.t0>ocrSel.t1);
+  savePatches();
+};
+
+function addEvent(){
+  if(!cur) return;
+  const t = vid.currentTime;
+  const ev = {
+    id: cur.trial.stem.slice(-8) + "_m" + Date.now()%100000,
+    clip_start_s: Math.max(0, t-1), clip_end_s: Math.min(cur.trial.duration_s, t+5),
+    weight_g: 0, completed:false, excluded:false, source:"manual", flags:""
+  };
+  const m = measure(ev);
+  ev.weight_g = isNaN(m.delta) ? 0 : Math.max(0, Math.round(m.delta*10)/10);
+  cur.events.push(ev);
+  selectEvent(ev); touched(); loadTrials();
+}
+
+// ---------- save ----------
+function scheduleSave(){
+  clearTimeout(saveTimer);
+  saveTimer = setTimeout(async ()=>{
+    await fetch("/api/events/"+cur.trial.stem, {method:"POST", body: JSON.stringify(cur.events)});
+    const s=$("status"); s.style.opacity=1; setTimeout(()=>s.style.opacity=0, 800);
+  }, 400);
+}
+
+// ---------- timeline canvas ----------
+function resize(){ cv.width = cv.clientWidth*devicePixelRatio; cv.height = cv.clientHeight*devicePixelRatio;
+  ctx.setTransform(devicePixelRatio,0,0,devicePixelRatio,0,0); draw(); }
+window.addEventListener("resize", resize);
+
+const X = t => (t-view.t0)/(view.t1-view.t0)*cv.clientWidth;
+const T = x => view.t0 + x/cv.clientWidth*(view.t1-view.t0);
+
+function draw(){
+  const W = cv.clientWidth, H = cv.clientHeight;
+  ctx.clearRect(0,0,W,H);
+  if(!cur) return;
+  const {t,w} = cur.trace;
+  let wmax = 50;
+  for(let i=0;i<t.length;i++) if(t[i]>=view.t0 && t[i]<=view.t1 && w[i]>wmax) wmax = w[i];
+  wmax *= 1.1;
+  const Y = v => H-16-(v/wmax)*(H-30);
+
+  // grid
+  ctx.fillStyle="#3a4252"; ctx.font="10px sans-serif";
+  const step = (view.t1-view.t0)>60 ? 10 : (view.t1-view.t0)>15 ? 5 : 1;
+  for(let g=Math.ceil(view.t0/step)*step; g<=view.t1; g+=step){
+    ctx.fillRect(X(g),0,1,H-14); ctx.fillText(g+"s", X(g)+2, H-3);
+  }
+
+  // event spans
+  for(const ev of cur.events){
+    const x0=X(ev.clip_start_s), x1=X(ev.clip_end_s);
+    ctx.fillStyle = ev.excluded ? "rgba(160,60,60,.18)" : ev.completed ? "rgba(60,170,90,.20)" : "rgba(80,130,240,.16)";
+    ctx.fillRect(x0,0,x1-x0,H-14);
+    ctx.fillStyle = ev===sel ? "#4f8ef7" : "#5a6478";
+    ctx.fillRect(x0,0,2,H-14); ctx.fillRect(x1-2,0,2,H-14);
+    if(ev===sel){ ctx.strokeStyle="#4f8ef7"; ctx.strokeRect(x0,0.5,x1-x0,H-15); }
+    ctx.fillStyle = ev.excluded ? "#c25757" : "#9aa3b2";
+    ctx.fillText(ev.weight_g+"g", x0+4, 12);
+  }
+
+  // OCR selection (edit mode)
+  if(editMode && ocrSel){
+    ctx.fillStyle="rgba(230,210,80,.18)";
+    ctx.fillRect(X(ocrSel.t0),0,Math.max(2,X(ocrSel.t1)-X(ocrSel.t0)),H-14);
+    ctx.strokeStyle="#d9c441";
+    ctx.strokeRect(X(ocrSel.t0)+0.5,0.5,Math.max(2,X(ocrSel.t1)-X(ocrSel.t0)),H-15);
+  }
+
+  // raw OCR points (blue; user-corrected samples yellow; clamped to view)
+  const raw = cur.trace.raw, edited = cur.trace.edited;
+  if(raw && $("showraw").checked){
+    for(let i=0;i<t.length;i++){
+      if(raw[i]===null || t[i]<view.t0 || t[i]>view.t1) continue;
+      const clamped = raw[i]>wmax;
+      ctx.fillStyle = edited && edited[i] ? "#d9c441" : clamped ? "#7a5470" : "#6f89b0";
+      ctx.fillRect(X(t[i])-1, clamped ? 2 : Y(Math.max(0,raw[i]))-1, 2.5, 2.5);
+    }
+  }
+  // edited-region strip (top edge)
+  if(edited){
+    ctx.fillStyle="#d9c441";
+    for(let i=0;i<t.length;i++)
+      if(edited[i] && t[i]>=view.t0 && t[i]<=view.t1) ctx.fillRect(X(t[i])-1,0,3,3);
+  }
+
+  // trace
+  ctx.strokeStyle="#e0503c"; ctx.lineWidth=1.4; ctx.beginPath();
+  let started=false;
+  for(let i=0;i<t.length;i++){
+    if(t[i]<view.t0-1||t[i]>view.t1+1) continue;
+    const x=X(t[i]), y=Y(Math.max(0,Math.min(w[i],wmax)));
+    started ? ctx.lineTo(x,y) : ctx.moveTo(x,y); started=true;
+  }
+  ctx.stroke();
+
+  // weight-override preview for selected event (rescaled curve)
+  if(sel && !sel.excluded){
+    const m = measure(sel);
+    if(!isNaN(m.delta) && Math.abs(m.delta)>=5 && Math.abs(sel.weight_g - m.delta)>0.5){
+      const k = sel.weight_g / m.delta;
+      ctx.strokeStyle="#f0a030"; ctx.lineWidth=1.6; ctx.beginPath(); started=false;
+      for(let i=0;i<t.length;i++){
+        if(t[i]<sel.clip_start_s||t[i]>sel.clip_end_s) continue;
+        const v = m.base + (w[i]-m.base)*k;
+        const x=X(t[i]), y=Y(Math.max(0,Math.min(v,wmax)));
+        started ? ctx.lineTo(x,y) : ctx.moveTo(x,y); started=true;
+      }
+      ctx.stroke();
+    }
+  }
+
+  // playhead + live value readout (frame-by-frame curve check)
+  const px = X(vid.currentTime);
+  ctx.fillStyle="#fff"; ctx.fillRect(px-0.5,0,1.5,H-14);
+  const v = valueAt(vid.currentTime);
+  if(v){
+    // dots on the curve(s)
+    ctx.fillStyle="#e0503c"; ctx.beginPath(); ctx.arc(px, Y(Math.max(0,Math.min(v.w,wmax))), 3.5, 0, 7); ctx.fill();
+    if(v.adj!==null){ ctx.fillStyle="#f0a030"; ctx.beginPath(); ctx.arc(px, Y(Math.max(0,Math.min(v.adj,wmax))), 3.5, 0, 7); ctx.fill(); }
+    // value box (flips side near the right edge)
+    const lines = [`t ${vid.currentTime.toFixed(2)} s`, `trace ${v.w.toFixed(1)} g`];
+    if(v.adj!==null) lines.push(`adjusted ${v.adj.toFixed(1)} g`);
+    if(v.raw!==null) lines.push(`ocr ${v.raw.toFixed(0)}`);
+    ctx.font="11px monospace";
+    const bw = Math.max(...lines.map(l=>ctx.measureText(l).width))+12, bh = lines.length*14+8;
+    const bx = px+bw+10>W ? px-bw-6 : px+6;
+    ctx.fillStyle="rgba(16,18,22,.88)"; ctx.fillRect(bx,4,bw,bh);
+    ctx.strokeStyle="#3a4252"; ctx.strokeRect(bx+0.5,4.5,bw,bh);
+    lines.forEach((l,i)=>{
+      ctx.fillStyle = l.startsWith("adjusted") ? "#f0a030" : l.startsWith("ocr") ? "#8a93a4" : "#e6e9ee";
+      ctx.fillText(l, bx+6, 18+i*14);
+    });
+    $("readout").innerHTML =
+      `t <b>${vid.currentTime.toFixed(2)}</b> s &nbsp; trace <b>${v.w.toFixed(1)}</b> g` +
+      (v.adj!==null ? ` &nbsp; <span style="color:#f0a030">adjusted <b>${v.adj.toFixed(1)}</b> g</span>` : "") +
+      (v.raw!==null ? ` &nbsp; <span style="color:#8a93a4">ocr ${v.raw.toFixed(0)}</span>` : " &nbsp; <span style='color:#8a93a4'>ocr –</span>");
+  }
+}
+
+// ---------- canvas interaction ----------
+cv.addEventListener("mousedown", e=>{
+  const x = e.offsetX, tm = T(x);
+  if(editMode){                       // drag selects an OCR sample range
+    ocrSel = {t0: tm, t1: tm};
+    drag = {mode:"ocrsel", tStart: tm};
+    renderPatches(); draw();
+    return;
+  }
+  // near an edge of an event? (8 px tolerance, selected event has priority)
+  const cands = sel ? [sel, ...cur.events] : cur.events;
+  for(const ev of cands){
+    if(Math.abs(x-X(ev.clip_start_s))<8){ drag={mode:"start",ev}; selectEventNoZoom(ev); return; }
+    if(Math.abs(x-X(ev.clip_end_s))<8){ drag={mode:"end",ev}; selectEventNoZoom(ev); return; }
+  }
+  const hit = cur.events.find(ev=>tm>=ev.clip_start_s && tm<=ev.clip_end_s);
+  if(hit){ selectEventNoZoom(hit); vid.currentTime = tm; return; }
+  drag = {mode:"pan", x0:e.offsetX, t0v:view.t0, t1v:view.t1, moved:false, tm};
+});
+function selectEventNoZoom(ev){ sel=ev; renderEvents(); draw(); }
+window.addEventListener("mousemove", e=>{
+  if(!drag) return;
+  const r = cv.getBoundingClientRect(), x = e.clientX-r.left, tm = T(x);
+  if(drag.mode==="ocrsel"){
+    ocrSel = {t0: Math.min(drag.tStart,tm), t1: Math.max(drag.tStart,tm)};
+    renderPatches(); draw(); return;
+  }
+  if(drag.mode==="start"){ drag.ev.clip_start_s = Math.max(0, Math.min(tm, drag.ev.clip_end_s-0.5)); }
+  else if(drag.mode==="end"){ drag.ev.clip_end_s = Math.min(cur.trial.duration_s, Math.max(tm, drag.ev.clip_start_s+0.5)); }
+  else { const dt = (drag.x0-x)/cv.clientWidth*(drag.t1v-drag.t0v);
+         if(Math.abs(drag.x0-x)>3) drag.moved=true;
+         const span=drag.t1v-drag.t0v;
+         view.t0=Math.max(0,Math.min(drag.t0v+dt, cur.trial.duration_s-span));
+         view.t1=view.t0+span; }
+  syncEditor(); draw();
+});
+window.addEventListener("mouseup", ()=>{
+  if(drag){
+    if(drag.mode==="ocrsel"){
+      // a plain click selects one display sample (~1/30 s bin)
+      if(ocrSel.t1-ocrSel.t0 < 1/60){ ocrSel.t0 -= 1/60; ocrSel.t1 += 1/60; }
+      const v = valueAt((ocrSel.t0+ocrSel.t1)/2);
+      if(v && v.raw!==null && document.activeElement!==$("ocrval")) $("ocrval").value = v.raw;
+      renderPatches(); draw(); drag=null; return;
+    }
+    if(drag.mode==="pan" && !drag.moved){ vid.currentTime = drag.tm; }
+    if(drag.mode==="start"||drag.mode==="end") { scheduleSave(); renderEvents(); }
+    drag=null;
+  }
+});
+cv.addEventListener("wheel", e=>{
+  e.preventDefault();
+  const tm = T(e.offsetX), f = e.deltaY>0 ? 1.25 : 0.8;
+  let span = Math.min(cur.trial.duration_s, Math.max(2, (view.t1-view.t0)*f));
+  view.t0 = Math.max(0, tm-(tm-view.t0)*span/(view.t1-view.t0));
+  view.t1 = Math.min(cur.trial.duration_s, view.t0+span);
+  view.t0 = Math.max(0, view.t1-span);
+  draw();
+},{passive:false});
+
+// ---------- keyboard ----------
+window.addEventListener("keydown", e=>{
+  if(e.target.tagName==="INPUT") return;
+  if(e.code==="Space"){ e.preventDefault(); vid.paused?vid.play():vid.pause(); }
+  else if(e.key==="ArrowLeft"){ vid.currentTime=Math.max(0,vid.currentTime-(e.shiftKey?1:0.1)); }
+  else if(e.key==="ArrowRight"){ vid.currentTime+= e.shiftKey?1:0.1; }
+  else if(e.key==="["){ $("setstart").click(); }
+  else if(e.key==="]"){ $("setend").click(); }
+  else if(e.key==="n"){ addEvent(); }
+  else if(e.key==="c" && sel){ sel.completed=!sel.completed; touched(); loadTrials(); }
+  else if(e.key==="e"){ setEditMode(!editMode); }
+});
+
+vid.addEventListener("timeupdate", draw);
+setInterval(()=>{ if(!vid.paused) draw(); }, 50);
+
+loadTrials().then(()=>{ resize(); if(trials.length) loadTrial(trials[0].stem); });
+</script>
+</body>
+</html>
