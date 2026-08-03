@@ -1,36 +1,56 @@
 ---
 theme: default
-layout: default
+title: Frozen V-JEPA 2 as a physical-quantity probe
+info: IDP SS26, Casimir Wallwitz
+layout: cover
+transition: none
+mdc: true
+colorSchema: light
 ---
 
-# V-JEPA 2 + EK100 for action labelling
+# Frozen V-JEPA 2 as a physical-quantity probe
 
-EgoPER tea, egocentric, zero-shot (no fine-tuning)
+Pouring flow rate from a wide third-person video
 
-- Frozen V-JEPA 2 features plus the EK100 action head, applied off the shelf
-- Top-5 verb accuracy 0.96 over 220 ground-truth action segments
-- Reads the right actions: pour, take, insert, stir
-- Flags anomalies too: microwave (added step) and knife (wrong tool)
-- Main limitation is the EPIC vocabulary (no tea, mug, teabag), not perception
+<div class="text-sm opacity-60 mt-6">
 
----
-
-# Transfer to eXprt (third-person view)
-
-- eXprt is a fixed third-person wide shot, not egocentric
-- Off-the-shelf EK100 head fails: top-1 verb 0.05, fixates on the background
-- A probe on the frozen V-JEPA embeddings recovers the action signal
-- Leave-one-video-out accuracy 0.74, permutation null 0.30, p < 0.003
-- Finetuning approach: 19 hand-labelled segments, mostly pour vs put, more labels needed
-
----
-
-# eXprt probe, qualitative examples
-
-<img src="./ek100_examples_6.png" style="max-height: 84%; margin: 0.3rem auto 0; display: block;" />
-
-<div class="text-xs text-gray-500 mt-1 text-center">
-
-Border = verb correct (green) / wrong (red) · orange = noun misclassified (no tea nouns in EPIC) · only large, unambiguous cues survive the distant third-person view
+IDP SS26 &middot; Casimir Wallwitz &middot; status as of 2026-07-26
 
 </div>
+
+<!--
+Deck is split by concern: pages/*.md, imported below.
+Figures are regenerated with `python make_figs.py` into public/figs.
+-->
+
+---
+src: ./pages/00-arc.md
+---
+
+---
+src: ./pages/10-background.md
+---
+
+---
+src: ./pages/20-data.md
+---
+
+---
+src: ./pages/30-method.md
+---
+
+---
+src: ./pages/40-results.md
+---
+
+---
+src: ./pages/50-ablations.md
+---
+
+---
+src: ./pages/60-crossmodal.md
+---
+
+---
+src: ./pages/70-outlook.md
+---

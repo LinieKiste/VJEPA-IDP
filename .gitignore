@@ -38,6 +38,8 @@ video_qa/data/
 qc_*.png
 qc_*.pdf
 **/qc/
+# …except the curated copies the slide deck actually renders (synced by make_figs.py)
+!presentation/assets/qc_*.png
 
 # External reference repos cloned for reading only (each has its own .git)
 third_party/
