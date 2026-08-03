@@ -44,6 +44,16 @@ bar — a working, honest result is.
   (absolute path — sqlite's default is CWD-relative and spawned a stray second store once).
   All scripts route through `mlflow_util.setup()`. Launch UI with
   `mlflow ui --backend-store-uri sqlite:////home/casimir/UNI/SS_26/idp/mlflow.db`.
+  The stray `pouring/pour_probe/mlflow.db` still exists but is **strictly redundant**
+  (verified 2026-08-03: same 40 baselines run names, canonical is a superset) — ignore it.
+- **⚠ `mlflow.db` CANNOT BE PUSHED TO GITHUB.** Its secret scanner reads a 32-hex mlflow
+  `run_uuid` that happens to follow the bytes `AC` in a sqlite page as a **Twilio Account
+  SID** and rejects the push (trips on `attn_flow_CAM2_roi`, `multiclass_seed1_fold4`).
+  False positive, but blocking. So the db is gitignored and the run record travels as CSV in
+  **`mlflow_export/`** (`pour_probe/mlflow_export.py`, 177 runs / 240 KB); `mlruns/` (logged
+  artifacts, 532 KB) IS tracked. Copy the db by hand if you need the UI elsewhere, then run
+  **`pour_probe/mlflow_relocate.py`** — artifact paths are stored ABSOLUTE, so a clone at a
+  different path shows metrics but opens no artifacts.
 - **Workflow discipline:** pilot-first, build small QC utilities, get user sign-off at
   "gates" before any compute-heavy batch. Keep datasets pristine — extract writable working
   copies, never chmod/modify originals.
@@ -499,7 +509,17 @@ video QA; 3-stage visual instruction tuning. **This dir is the source of the sha
 Slidev deck, **split by concern**: `slides.md` is only headmatter + a title slide + `src:`
 imports of `pages/*.md` (`00-arc`, `10-background`, `20-data`, `30-method`, `40-results`,
 `50-ablations`, `60-crossmodal`, `70-outlook`). Edit one page file per topic; nothing else
-needs touching. 34 slides as of 2026-07-26.
+needs touching. ~47 slides as of 2026-08-03. **`presentation/README.md` is the operational
+guide** (build, page map, figure regeneration, run record) — read it first.
+- **The deck builds from a BARE CLONE — keep it that way** (verified 2026-08-03 by cloning
+  from GitHub with `datasets/` and `~/.cache` both absent: all 19 figures regenerate
+  **byte-identical**, `slidev build` clean, 28 images bundled, no broken refs).
+  `presentation/data/` (4.4 MB) mirrors the few non-git inputs the figures touch:
+  `headline_preds.npz` (was a hardcoded `/home/casimir/.cache` path), `clips_manifest.csv`,
+  three extracted video frames (`fig_inputs`, `fig_views_example` — substitutes for the
+  410 MB clip set), and the 121 GT clip curves. `make_figs.py::data_path()` prefers the
+  original and falls back to the bundle, so nothing changes on the workstation.
+  **If you add a figure that reads from `datasets/` or a cache, add its input to `data/`.**
 - **Assets are relative, NOT in `public/`.** Slidev/Vite's slide-import-guard rejects
   `/foo.png` absolute paths inside imported page files (`resolves outside server.fs.allow`),
   so pages reference `../figs/*.png` (generated) and `../assets/*.png` (copied QC figures).
@@ -507,6 +527,9 @@ needs touching. 34 slides as of 2026-07-26.
   QC pngs into `assets/` (incl. cropping the 8-row ROI QC sheet to 3 rows). Numbers in it are
   transcribed from mlflow + the analyses that were never logged as runs (lag sweep,
   calibration, oracle-container) — it is the single place to fix a number.
+  The QC *sources* under `pouring/` are gitignored (`qc_*.png`), so the **copies in
+  `presentation/assets/` are the tracked ones** (`.gitignore` carries an explicit
+  `!presentation/assets/qc_*.png` exception); `sync_assets()` no-ops when sources are absent.
 - `colorSchema: light` is forced in the headmatter; the matplotlib figures are white-background
   and look broken on slidev's default dark scheme.
 - Build/preview: `npx slidev` (dev) or `npx slidev build`. No playwright installed, so
