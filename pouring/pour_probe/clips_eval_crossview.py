@@ -29,21 +29,31 @@ def main():
     ap.add_argument("--tag", default="", help="checkpoint tag suffix, e.g. '_roi' for the "
                     "detector-ROI crop run (attn_<target>_<cam><tag>_best.pt). Set "
                     "$POUR_FRAMES288_DIR to the matching frame cache.")
+    ap.add_argument("--lag_s", type=float, default=0.0,
+                    help="target lag the checkpoint was TRAINED with (e.g. 0.7). Must match, "
+                         "or both the train-split normalization stats and the eval targets are "
+                         "sampled at the wrong time and the transfer number is meaningless.")
+    ap.add_argument("--val_trials", default=",".join(sorted(ca.VAL_TRIALS)),
+                    help="held-out trials the checkpoint was TRAINED against. Must match the "
+                         "training split, or train-set windows leak into the eval set and the "
+                         "transfer number is optimistic. Defaults to clips_train_attn.VAL_TRIALS.")
     args = ap.parse_args()
+
+    val_trials = set(args.val_trials.split(","))
 
     # targets are shared (same GT curve); only the video frames differ across cams.
     # train-split target stats come from the checkpoint's TRAINING camera.
     tr_cams = {args.train_cam: ca.load_clips(args.train_cam)}
-    tr_only = [w for w in ca.build_windows(tr_cams, 1.0, 0.5, 16)
-               if w["trial"] not in ca.VAL_TRIALS]
+    tr_only = [w for w in ca.build_windows(tr_cams, 1.0, 0.5, 16, args.lag_s)
+               if w["trial"] not in val_trials]
     ytr = np.asarray([w[args.target] for w in tr_only], np.float32)
     ymean, ystd = float(ytr.mean()), float(ytr.std() + 1e-6)
 
     eval_cams = {args.eval_cam: ca.load_clips(args.eval_cam)}
-    va_eval = [w for w in ca.build_windows(eval_cams, 1.0, 0.5, 16)
-               if w["trial"] in ca.VAL_TRIALS]
+    va_eval = [w for w in ca.build_windows(eval_cams, 1.0, 0.5, 16, args.lag_s)
+               if w["trial"] in val_trials]
     print(f"eval on {args.eval_cam}: {len(va_eval)} val windows, "
-          f"trials {sorted(ca.VAL_TRIALS)}")
+          f"trials {sorted(val_trials)}")
 
     enc = load_encoder(img_size=256, num_frames=16, device="cuda")
     head = build_head(1).to("cuda")
@@ -55,7 +65,7 @@ def main():
                                      "cuda", mean, std, ymean, ystd)
 
     # native baselines on the eval camera, same held-out trials
-    base = ca.baselines_on_split(args.eval_cam, args.target, ca.VAL_TRIALS)
+    base = ca.baselines_on_split(args.eval_cam, args.target, val_trials, args.lag_s)
 
     unit = "g/s" if args.target == "flow" else "g"
     print(f"\n=== cross-view: probe trained on {args.train_cam}, evaluated on "

@@ -201,12 +201,40 @@ def mean_removed_r2(preds, ys, clips):
     return r2_score(y, p)
 
 
-def baselines_on_split(cam, target, va_trials):
+def _retarget(cids, tmid, target, lag_s, window_s):
+    """Per-window target resampled at t+lag, matching clips_extract's definitions:
+    volume = weight at the window centre, flow = dWeight across the window."""
+    import clips_train as ct
+    CLIPS = ct.CLIPS
+    out = np.zeros(len(tmid), np.float32)
+    for c in set(cids.tolist()):
+        m = cids == c
+        d = np.loadtxt(CLIPS / "csv" / f"{c}.csv", delimiter=",", skiprows=1)
+        tgt, wgt = d[:, 0], d[:, 1]
+        t = tmid[m].astype(np.float64) + lag_s
+        if target == "volume":
+            out[m] = np.interp(t, tgt, wgt)
+        else:
+            out[m] = (np.interp(t + window_s / 2, tgt, wgt)
+                      - np.interp(t - window_s / 2, tgt, wgt)) / window_s
+    return out
+
+
+def baselines_on_split(cam, target, va_trials, lag_s=0.0, window_s=1.0):
     """Ridge on mean-pool feats + temporal-profile + predict-mean, evaluated on the
-    SAME held-out val trials (uses the mean-pool cache from clips_extract)."""
+    SAME held-out val trials (uses the mean-pool cache from clips_extract).
+
+    `lag_s` MUST match the lag the probe was trained with. The mean-pool cache stores
+    targets computed at lag 0, so without this the baselines are scored against
+    lag-0 targets while the probe is scored against lagged ones — which flatters the
+    probe badly (the lag is worth ~+0.17 to the CAM3 ridge on our split). Targets are
+    recomputed here exactly as clips_extract does, but sampled at t+lag.
+    """
     import clips_train as ct
     from sklearn.preprocessing import PolynomialFeatures
     X, y, groups, cids, tmid = ct.load_both(target) if cam == "both" else ct.load(cam, target)
+    if lag_s:
+        y = _retarget(cids, tmid, target, lag_s, window_s)
     is_va = np.asarray([g in va_trials for g in groups])
     out = {}
     # ridge on V-JEPA mean-pool
@@ -468,7 +496,8 @@ def main():
         percam["within-vid corr r"] = (wc, float("nan"))
 
     # baselines on the same held-out groups
-    base = (baselines_on_split(args.cam, args.target, val_trials) if args.dataset == "clips"
+    base = (baselines_on_split(args.cam, args.target, val_trials, args.lag_s, args.window_s)
+            if args.dataset == "clips"
             else sow_baselines_on_split(wins, args.target, val_trials))
     for name, (r2, mae) in base.items():
         mlflow.log_metric(f"{name}_r2", r2); mlflow.log_metric(f"{name}_mae", mae)
