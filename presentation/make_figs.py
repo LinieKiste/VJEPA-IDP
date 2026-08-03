@@ -23,6 +23,16 @@ HERE = Path(__file__).parent
 OUT = HERE / "figs"
 OUT.mkdir(parents=True, exist_ok=True)
 
+# Everything the figures need that does NOT live in git (the 410 MB clip set, the
+# prediction cache under ~/.cache) is mirrored into data/ so the deck rebuilds on a
+# machine that has only this repo. Originals win when present; the bundle is the fallback.
+DATA = HERE / "data"
+
+
+def data_path(bundled: str, original: Path) -> Path:
+    """Prefer the original artifact, fall back to the committed copy in data/."""
+    return original if original.exists() else DATA / bundled
+
 # QC figures produced by the experiment scripts, copied in so the deck is self-contained.
 QC_SOURCES = {
     "qc_attn_flow_CAM2.png": "pouring/pour_probe/qc_attn_flow_CAM2.png",
@@ -119,7 +129,8 @@ def hbars(ax, labels, values, colors, fmt="{:.2f}", xlim=None, xlabel=""):
 def fig_dataset():
     rows = list(
         csv.DictReader(
-            open(ROOT / "datasets/pouring_processed/clips/clips_manifest.csv")
+            open(data_path("clips_manifest.csv",
+                           ROOT / "datasets/pouring_processed/clips/clips_manifest.csv"))
         )
     )
     mass = np.array([float(r["weight_g"]) for r in rows])
@@ -535,11 +546,14 @@ def fig_inputs():
     faces the dedicated overhead OCR camera, CAM2 sees only the weighing platform, and
     after short-side-256 + center crop the whole scale is ~30x15 px.
     """
-    import decord
+    clip = ROOT / "datasets/pouring_processed/clips/CAM2/0001.mp4"
+    if clip.exists():
+        import decord
 
-    vr = decord.VideoReader(
-        str(ROOT / "datasets/pouring_processed/clips/CAM2/0001.mp4"))
-    fr = vr[int(2 * float(vr.get_avg_fps()))].asnumpy()
+        vr = decord.VideoReader(str(clip))
+        fr = vr[int(2 * float(vr.get_avg_fps()))].asnumpy()
+    else:
+        fr = np.array(Image.open(DATA / "frames/CAM2_0001_t2s.png").convert("RGB"))
     H, W = fr.shape[:2]
 
     box = (800, 600, 1120, 720)                      # the scale, native coords
@@ -582,7 +596,9 @@ def fig_volume_curves():
     tracks an average pour and cannot follow a fast or slow one. Selection is by total
     mass quantile, not by eye, so this is not a cherry-pick.
     """
-    f = np.load("/home/casimir/.cache/pour_probe/headline_preds.npz", allow_pickle=True)
+    f = np.load(data_path("headline_preds.npz",
+                          Path.home() / ".cache/pour_probe/headline_preds.npz"),
+                allow_pickle=True)
     bc, bt, by = f["base_clip"], f["base_tmid"], f["base_y"]
     clock, vjc = f["base_clock"], f["base_vjepa_clock"]
     ac, at, ap = f["volume_clip"], f["volume_tmid"], f["volume_pred"]
@@ -854,21 +870,24 @@ def fig_sow_ttf():
 
 # -------------------------------------------------- 12. example camera views
 def fig_views_example():
-    import cv2
-
     clip, cams = "0001", ["CAM2", "CAM3"]
     titles = ["CAM2  side view", "CAM3  front view, distant"]
     fig, axes = plt.subplots(1, 2, figsize=(11.0, 3.3))
     for ax, cam, lab in zip(axes, cams, titles):
-        cap = cv2.VideoCapture(
-            str(ROOT / f"datasets/pouring_processed/clips/{cam}/{clip}.mp4")
-        )
-        cap.set(cv2.CAP_PROP_POS_FRAMES, int(cap.get(cv2.CAP_PROP_FRAME_COUNT)) // 2)
-        ok, fr = cap.read()
-        cap.release()
-        if not ok:
-            return
-        ax.imshow(cv2.cvtColor(fr, cv2.COLOR_BGR2RGB))
+        src = ROOT / f"datasets/pouring_processed/clips/{cam}/{clip}.mp4"
+        if src.exists():
+            import cv2
+
+            cap = cv2.VideoCapture(str(src))
+            cap.set(cv2.CAP_PROP_POS_FRAMES, int(cap.get(cv2.CAP_PROP_FRAME_COUNT)) // 2)
+            ok, bgr = cap.read()
+            cap.release()
+            if not ok:
+                return
+            fr = cv2.cvtColor(bgr, cv2.COLOR_BGR2RGB)
+        else:
+            fr = np.array(Image.open(DATA / f"frames/{cam}_0001_mid.png").convert("RGB"))
+        ax.imshow(fr)
         ax.axis("off")
         ax.set_title(lab, fontsize=11)
     fig.suptitle(

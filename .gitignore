@@ -24,9 +24,14 @@ runs/
 *.avi
 *.mov
 
-# Experiment artifacts & caches (regenerable)
+# The mlflow store is NOT regenerable — reproducing its 177 runs is weeks of GPU — but the
+# binary db cannot be pushed: GitHub's secret scanner reads a 32-hex mlflow run_uuid that
+# happens to follow the bytes "AC" in a sqlite page as a Twilio Account SID. So the RUNS
+# are tracked as CSV in mlflow_export/ (regenerate with pour_probe/mlflow_export.py) and
+# the logged artifacts as mlruns/. Keep the db itself local.
 mlflow.db
-mlruns/
+
+# Experiment artifacts & caches (regenerable)
 egoper_probe/features/
 exprt_probe/features/
 exprt_probe/pooled/
