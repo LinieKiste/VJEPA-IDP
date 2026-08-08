@@ -1,0 +1,295 @@
+/* ---------------------------------------------------------------------------
+ * Placeholder boxes. Each rule is one <p:sp> from the pptx; the comment gives
+ * the shape name and its raw EMU offset/extent so the mapping stays auditable.
+ * ------------------------------------------------------------------------- */
+
+.tum-slide {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  background: var(--tum-bg);
+}
+
+/* "Titel 1" — off (311162, 293460) ext (8508999, 380810) ------------------ */
+.tum-title {
+  position: absolute;
+  left: var(--tum-margin-l);
+  top: var(--tum-title-top);
+  width: var(--tum-col-w);
+  padding-top: var(--tum-title-pad);
+  font-size: var(--tum-title-size);
+  line-height: var(--tum-title-line);
+  font-weight: 400; /* titleStyle lvl1 b="0" */
+  color: var(--tum-text); /* schemeClr tx1 */
+  margin: 0;
+}
+
+/* "Text Placeholder 18" — off (311161, 684430) ext (8508999, 321410),
+ * bodyPr tIns="93600", defRPr sz="1800" solidFill schemeClr bg2 ----------- */
+.tum-subtitle {
+  position: absolute;
+  left: var(--tum-margin-l);
+  top: var(--tum-subtitle-top);
+  width: var(--tum-col-w);
+  padding-top: calc(var(--tum-subtitle-tins) + var(--tum-subtitle-pad));
+  font-size: var(--tum-subtitle-size);
+  line-height: var(--tum-subtitle-line);
+  font-weight: 400;
+  color: var(--tum-blue);
+  margin: 0;
+}
+
+/* "Textplatzhalter 7" — off (319090, 1222525) ext (8508999, 505304) ------- */
+.tum-lead {
+  position: absolute;
+  left: var(--tum-margin-l2);
+  top: var(--tum-lead-top);
+  width: var(--tum-col-w);
+  height: var(--tum-lead-h);
+  padding-top: var(--tum-body-pad);
+}
+
+/* "Inhaltsplatzhalter 2" — two vertical positions depending on whether the
+ * layout carries a lead text block:
+ *   layout14/15 off (319090, 1222525) ext (8508999, 3463775)
+ *   layout11/12 off (319090, 1785785) ext (8508999, 2900515)               */
+.tum-content {
+  position: absolute;
+  left: var(--tum-margin-l2);
+  top: var(--tum-content-top);
+  width: var(--tum-col-w);
+  height: var(--tum-content-h);
+  padding-top: var(--tum-body-pad);
+  overflow: hidden;
+}
+.tum-content--below-lead {
+  top: var(--tum-content-top-lead);
+  height: var(--tum-content-h-lead);
+}
+
+/* "Inhaltsplatzhalter 2" x2 — off (311162 | 4647179, 1222524)
+ * ext (4180910, 3475102) each. Gutter = 4647179-311162-4180910 = 155107. -- */
+.tum-col-left,
+.tum-col-right {
+  position: absolute;
+  top: 23.7683%;
+  height: 67.5630%;
+  width: 45.7230%;
+  padding-top: var(--tum-body-pad);
+  overflow: hidden;
+}
+.tum-col-left {
+  left: 3.4029%;
+}
+.tum-col-right {
+  left: 50.8222%;
+}
+/* layout19/21 variant: content left, picture right, both starting at the
+ * band line. off (316992 | 4638677, 1771076|1771077).                       */
+.tum-col-left--band {
+  top: var(--tum-band-top);
+  left: 3.4667%;
+  width: 45.8042%;
+  height: 56.8630%;
+}
+.tum-col-right--band {
+  top: var(--tum-band-top);
+  left: 50.7292%;
+  width: 45.7173%;
+  height: 56.8630%;
+}
+
+/* "Rechteck 8" — off (0, 1771076) ext (9144000, 3372424),
+ * solidFill schemeClr bg1 lumMod 95000                                     */
+.tum-band {
+  position: absolute;
+  left: 0;
+  top: var(--tum-band-top);
+  width: 100%;
+  bottom: 0;
+  background: var(--tum-grey-5);
+}
+
+/* "Bildplatzhalter 8" — off (0, 1771076) ext (9144000, 3367344) ---------- */
+.tum-image-large {
+  position: absolute;
+  left: 0;
+  top: var(--tum-band-top);
+  width: 100%;
+  height: 65.4679%;
+}
+/* "Bildplatzhalter 2" — off (0, 1222524) ext (9144000, 3920975) ---------- */
+.tum-image-full {
+  position: absolute;
+  left: 0;
+  top: 23.7683%;
+  width: 100%;
+  height: 76.2317%;
+}
+.tum-image-large img,
+.tum-image-full img,
+.tum-col-right--band img {
+  width: 100%;
+  height: 100%;
+  object-position: center;
+}
+/* "formatfüllend" = format-filling, so this one crops to fill like a
+ * PowerPoint picture placeholder does. */
+.tum-image-full img {
+  object-fit: cover;
+}
+/* Opt-out (`crop: false`): show the whole image, letterboxed. */
+.tum-image-full.tum-image-contain img {
+  object-fit: contain;
+}
+/* The other two boxes default to `contain`: they usually hold a chart or a
+ * screenshot, where cropping would drop data. Override per slide if you want
+ * the picture-placeholder crop. */
+.tum-image-large img,
+.tum-col-right--band img {
+  object-fit: contain;
+}
+
+/* -- Chrome --------------------------------------------------------------- */
+
+/* "Bild 2" (TUM wordmark) — off (8218411, 324000) ext (604774, 318516) --- */
+.tum-logo {
+  position: absolute;
+  left: var(--tum-logo-l);
+  top: var(--tum-logo-t);
+  width: var(--tum-logo-w);
+  height: auto;
+  display: block;
+}
+
+/* "Fußzeilenplatzhalter 3" — off (311162, 4854985) ext (6464280, 273844),
+ * bodyPr anchor="ctr" lIns=0, lvl1pPr algn="l" defRPr sz="1100" tx1 ------- */
+.tum-footer {
+  position: absolute;
+  left: var(--tum-footer-l);
+  top: var(--tum-footer-t);
+  width: var(--tum-footer-w);
+  height: var(--tum-chrome-h);
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  font-size: var(--tum-chrome-size);
+  line-height: var(--tum-single);
+  color: var(--tum-text);
+  white-space: nowrap;
+}
+
+/* "Foliennummernplatzhalter 4" — off (6774934, 4854985) ext (2052074,
+ * 273844), lvl1pPr algn="r" defRPr sz="1100" tx1 ------------------------- */
+.tum-pagenum {
+  position: absolute;
+  left: var(--tum-pagenum-l);
+  top: var(--tum-footer-t);
+  width: var(--tum-pagenum-w);
+  height: var(--tum-chrome-h);
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  font-size: var(--tum-chrome-size);
+  line-height: var(--tum-single);
+  color: var(--tum-text);
+}
+
+/* Light chrome for the photo cover (slideMaster3 maps both to schemeClr bg1) */
+.tum-chrome--light .tum-footer,
+.tum-chrome--light .tum-pagenum {
+  color: #ffffff;
+}
+
+/* -- Cover slides --------------------------------------------------------- */
+
+/* slideMaster4 "Textfeld 10" — off (319506, 321468) ext (7160425, 346249),
+ * sz="800", lnSpc spcPts 900, solidFill schemeClr tx2 (= #0065BD here) ---- */
+.tum-chair {
+  position: absolute;
+  left: 3.4942%;
+  top: 6.2500%;
+  width: 78.3074%;
+  font-size: var(--tum-chair-size);
+  line-height: var(--tum-chair-line);
+  color: var(--tum-blue);
+  /* half-leading correction: (9 - 1.117188*8) / 2 */
+  padding-top: 0.031px;
+}
+.tum-chair p {
+  margin: 0;
+}
+
+/* layout7 "Titel 1" — off (319090, 972000) ext (8508999, 376238) --------- */
+.tum-cover-title {
+  position: absolute;
+  left: var(--tum-margin-l2);
+  top: 18.8976%;
+  width: var(--tum-col-w);
+  padding-top: var(--tum-title-pad);
+  font-size: var(--tum-title-size);
+  line-height: var(--tum-title-line);
+  font-weight: 400;
+  color: var(--tum-text);
+  margin: 0;
+}
+
+/* layout7 "Inhaltsplatzhalter 2" — off (319088, 1484040) ext (8508999,
+ * 955594), lvl1pPr defRPr sz="1400" srgbClr 000000 ----------------------- */
+.tum-cover-info {
+  position: absolute;
+  left: var(--tum-margin-l2);
+  top: 28.8527%;
+  width: var(--tum-col-w);
+  height: 18.5787%;
+  padding-top: var(--tum-body-pad);
+}
+
+/* layout7 "Bild 4" (Uhrenturm sketch) — off (4975215, 1476375)
+ * ext (3819542, 3333750); the JPEG is 629x549, the same 1.1457 aspect. --- */
+.tum-cover-art {
+  position: absolute;
+  left: 54.4096%;
+  top: 28.7037%;
+  width: 41.7710%;
+  height: 64.8148%;
+  object-fit: contain;
+}
+
+/* slideMaster3 "Bild 4" (Fahnen_HG.jpg) — off (0,0) ext = full canvas, with
+ * srcRect l="398" t="14167" b="10833" already baked into the cropped JPEG. */
+.tum-cover-photo {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.tum-cover--photo .tum-cover-title,
+.tum-cover--photo .tum-cover-info {
+  color: #ffffff; /* layout4 lvl1pPr solidFill schemeClr bg1 */
+}
+
+/* slideMaster3 "Bild 6" — off (8218800, 324000) ext (599513, 320288) ----- */
+.tum-cover--photo .tum-logo {
+  left: 89.8819%;
+  width: 6.5564%;
+}
+
+/* -- Section divider ------------------------------------------------------
+ * NOT in the pptx (the template ships four title variants and no divider);
+ * built from the TUM colour scheme so it sits inside the CD.               */
+.tum-section {
+  position: absolute;
+  inset: 0;
+  background: var(--tum-blue);
+}
+.tum-section .tum-cover-title,
+.tum-section .tum-cover-info {
+  color: #ffffff;
+}
+.tum-section .tum-footer,
+.tum-section .tum-pagenum {
+  color: #ffffff;
+}

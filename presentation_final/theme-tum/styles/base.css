@@ -1,0 +1,184 @@
+/* ---------------------------------------------------------------------------
+ * Base typography for content that lands inside a placeholder box.
+ * Everything here mirrors slideMaster5 <p:bodyStyle> / the layout list styles.
+ * ------------------------------------------------------------------------- */
+
+.slidev-layout {
+  font-family: var(--tum-font);
+  font-size: var(--tum-body-size);
+  line-height: var(--tum-body-line);
+  color: var(--tum-text);
+  background: var(--tum-bg);
+  padding: 0;
+  /* PowerPoint text frames in this template all carry lIns/tIns/rIns/bIns=0,
+   * so a placeholder's x/y is the exact text origin — no inset anywhere. */
+}
+
+.slidev-layout a {
+  color: var(--tum-hlink);
+  text-decoration: underline;
+}
+.slidev-layout a:visited {
+  color: var(--tum-folhlink);
+}
+
+/* Table-of-contents entries are navigation, not prose links. <Toc> renders each
+ * one as an <a>, which would otherwise pick up the pptx <a:hlink> blue
+ * (#0000FF) and the underline. Must sit after the :visited rule above — same
+ * specificity, so source order decides. */
+.slidev-layout .slidev-toc-item a,
+.slidev-layout .slidev-toc-item a:visited,
+.slidev-layout .slidev-toc-item a:hover,
+.slidev-layout .slidev-toc-item a:active {
+  color: inherit;
+  text-decoration: none;
+}
+
+.slidev-layout strong,
+.slidev-layout b {
+  font-weight: 700;
+}
+
+/* Inline code inherits its colour so it stays legible on the blue section
+ * layout and the photo cover; only fenced blocks get the 5%-black fill. */
+.slidev-layout code {
+  font-family: var(--tum-font-mono);
+  font-size: 0.92em;
+}
+
+.slidev-layout pre {
+  font-family: var(--tum-font-mono);
+  font-size: 11px;
+  line-height: 1.45;
+  background: var(--tum-grey-5) !important;
+  padding: 6px 8px;
+  overflow: auto;
+}
+.slidev-layout pre code {
+  background: none;
+  padding: 0;
+  font-size: inherit;
+}
+
+/* -- Paragraphs = bodyStyle lvl1: marL 0, no bullet ----------------------- */
+.tum-rich > p {
+  margin: 0 0 var(--tum-body-line) 0;
+}
+.tum-rich > p:last-child {
+  margin-bottom: 0;
+}
+
+/* Markdown inside a head slot arrives wrapped in <p>; unwrap it so the
+ * placeholder's own type spec keeps control. */
+.tum-title > p,
+.tum-subtitle > p,
+.tum-cover-title > p {
+  margin: 0;
+  font: inherit;
+  color: inherit;
+}
+
+/* Headings used *inside* a content box (the placeholder ramp already covers
+ * the slide title, so these are sub-heads). */
+.tum-rich h1,
+.tum-rich h2 {
+  font-size: 18px;
+  line-height: 1.25;
+  font-weight: 400;
+  color: var(--tum-blue);
+  margin: 0 0 6px 0;
+}
+.tum-rich h3,
+.tum-rich h4,
+.tum-rich h5,
+.tum-rich h6 {
+  font-size: 14px;
+  line-height: var(--tum-body-line);
+  font-weight: 700;
+  color: var(--tum-blue-dark);
+  margin: 0;
+}
+
+/* -- Lists ----------------------------------------------------------------
+ * markdown level 1 -> bodyStyle lvl2: buChar "•" (Arial), marL 176213 EMU
+ * markdown level 2 -> bodyStyle lvl3: buChar "-" , marL 360363 EMU
+ * markdown level 3 -> bodyStyle lvl4: buChar "-" , marL 538163 EMU
+ * `indent` equals -marL in the XML, i.e. a full hanging indent: the bullet
+ * sits at the parent's left edge and the text at marL.                      */
+.tum-rich ul,
+.tum-rich ol {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.tum-rich li {
+  position: relative;
+  padding-left: var(--tum-bullet-l1);
+  margin: 0;
+}
+.tum-rich li::before {
+  content: '\2022'; /* buChar char="•" typeface="Arial" */
+  position: absolute;
+  left: 0;
+  top: 0;
+}
+
+.tum-rich li > ul {
+  margin-left: 0;
+}
+.tum-rich li li {
+  padding-left: var(--tum-bullet-l2);
+}
+.tum-rich li li::before {
+  content: '\2013'; /* buChar char="-" typeface="Symbol" renders as en dash */
+}
+.tum-rich li li li {
+  padding-left: var(--tum-bullet-l3);
+}
+
+.tum-rich ol {
+  counter-reset: tum-ol;
+}
+.tum-rich ol > li {
+  counter-increment: tum-ol;
+}
+.tum-rich ol > li::before {
+  content: counter(tum-ol) '.';
+}
+
+/* -- Tables ---------------------------------------------------------------
+ * ppt/tableStyles.xml carries no custom style, so this follows the TUM CD:
+ * blue header rule, hairline separators, no vertical rules.                 */
+.tum-rich table {
+  border-collapse: collapse;
+  width: 100%;
+  font-size: 12px;
+  line-height: 1.3;
+}
+.tum-rich th {
+  text-align: left;
+  font-weight: 700;
+  color: var(--tum-blue);
+  border-bottom: 1px solid var(--tum-blue);
+  padding: 2px 6px 2px 0;
+}
+.tum-rich td {
+  border-bottom: 1px solid var(--tum-beige);
+  padding: 2px 6px 2px 0;
+}
+
+.tum-rich blockquote {
+  margin: 0;
+  padding-left: 10px;
+  border-left: 2px solid var(--tum-blue-light);
+  color: var(--tum-blue-dark);
+}
+
+.tum-rich img {
+  max-width: 100%;
+}
+
+.tum-rich > :first-child {
+  margin-top: 0;
+}

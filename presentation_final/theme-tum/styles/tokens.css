@@ -1,0 +1,104 @@
+/* ---------------------------------------------------------------------------
+ * TUM theme tokens — transcribed from
+ *   HLU_Presentation_Template_Oct_2022_Modified_by_Tian.pptx
+ *
+ * Canvas: <p:sldSz cx="9144000" cy="5143500" type="screen16x9">
+ *         = 10in x 5.625in = 720pt x 405pt.
+ * The deck sets canvasWidth: 720, so **1 CSS px == 1 PowerPoint point**.
+ * Every font-size / line-height below is therefore the literal `sz` value
+ * from the pptx XML (sz="2500" -> 25pt -> 25px).
+ * ------------------------------------------------------------------------- */
+
+:root {
+  /* -- Colour scheme "TUM" ------------------------------------------------
+   * ppt/theme/theme5.xml <a:clrScheme name="TUM">, mapped through
+   * slideMaster5 <p:clrMap bg1="lt1" tx1="dk1" bg2="lt2" tx2="dk2"/>.        */
+  --tum-blue: #0065bd; /* lt2  -> bg2: headings, subtitles (the TUM blue) */
+  --tum-blue-dark: #003359; /* dk2  -> tx2                                    */
+  --tum-blue-accent: #005293; /* accent1                                      */
+  --tum-blue-mid: #64a0c8; /* accent2                                         */
+  --tum-blue-light: #98c6ea; /* accent3                                       */
+  --tum-green: #a2ad00; /* accent4                                            */
+  --tum-orange: #e37222; /* accent5                                           */
+  --tum-beige: #dad7cb; /* accent6                                            */
+  --tum-hlink: #0000ff;
+  --tum-folhlink: #800080;
+
+  --tum-text: #000000; /* dk1 = sysClr windowText                             */
+  --tum-bg: #ffffff; /* lt1 = sysClr window                                   */
+  /* <a:schemeClr val="bg1"><a:lumMod val="95000"/> — the template calls this
+   * "5 % schwarz"; used as the panel fill on the "(Hintergrund)" layouts.    */
+  --tum-grey-5: #f2f2f2;
+
+  /* -- Typography ---------------------------------------------------------
+   * <a:fontScheme name="TUM Arial">, major and minor both "Arial".
+   * Liberation Sans is metric-compatible and is the Linux fallback.          */
+  --tum-font: Arial, 'Liberation Sans', Helvetica, 'Helvetica Neue', sans-serif;
+  --tum-font-mono: 'DejaVu Sans Mono', 'Liberation Mono', ui-monospace, monospace;
+
+  /* Arial hhea metrics / unitsPerEm 2048 — needed to convert PowerPoint's
+   * "first baseline = boxTop + lineHeight - descent" model into the browser's
+   * half-leading model (see --tum-*-pad below).                              */
+  --tum-asc: 0.905273; /* 1854 / 2048 */
+  --tum-desc: 0.211914; /*  434 / 2048 */
+  --tum-em: 1.117188; /* asc + desc  */
+  /* Effective single-line height for Arial as laid out by PowerPoint /
+   * LibreOffice; measured off the reference render (19.1155pt line for a
+   * 14pt run at lnSpc 114%  ->  19.1155 / 1.14 / 14).                        */
+  --tum-single: 1.19771;
+
+  /* -- Type ramp (sz values straight out of the XML) ---------------------- */
+  --tum-title-size: 25px; /* titleStyle lvl1 sz="2500"                        */
+  --tum-title-line: 32px; /* <a:lnSpc><a:spcPts val="3200"/>                  */
+  --tum-subtitle-size: 18px; /* "Text Placeholder 18" sz="1800"               */
+  --tum-subtitle-line: 18px; /* <a:lnSpc><a:spcPts val="1800"/>               */
+  --tum-body-size: 14px; /* content placeholders sz="1400"                    */
+  --tum-body-line: 1.36539; /* 114% x 1.19771 -> 19.116px at 14px             */
+  --tum-chrome-size: 11px; /* footer + slide number sz="1100"                 */
+  --tum-chair-size: 8px; /* slideMaster4 "Textfeld 10" sz="800"               */
+  --tum-chair-line: 9px; /* <a:lnSpc><a:spcPts val="900"/>                    */
+
+  /* Half-leading corrections: PowerPoint puts the first baseline at
+   * top + line - descent; a browser puts it at top + halfLeading + ascent.
+   * The difference is exactly the half-leading, so we pad by that much.      */
+  --tum-title-pad: 2.035px; /* (32   - 1.117188*25) / 2                       */
+  --tum-subtitle-pad: -1.055px; /* (18   - 1.117188*18) / 2                   */
+  --tum-body-pad: 1.737px; /* (19.116 - 1.117188*14) / 2                      */
+
+  /* -- Placeholder geometry, as % of the 9144000 x 5143500 EMU canvas -----
+   * Names follow the German placeholder names in the pptx.                   */
+  --tum-margin-l: 3.4029%; /* "Titel 1" x=311162                             */
+  --tum-margin-l2: 3.4896%; /* "Inhaltsplatzhalter 2" x=319090               */
+  --tum-col-w: 93.0555%; /* cx=8508999                                       */
+
+  --tum-title-top: 5.7055%; /* y=293460                                      */
+  --tum-title-h: 7.4037%; /* cy=380810                                       */
+  --tum-subtitle-top: 13.3067%; /* y=684430                                  */
+  --tum-subtitle-h: 6.2489%; /* cy=321410                                    */
+  --tum-subtitle-tins: 7.37px; /* <a:bodyPr tIns="93600"> = 93600/12700 pt    */
+  --tum-lead-top: 23.7683%; /* "Textplatzhalter 7" y=1222525                  */
+  --tum-lead-h: 9.8241%; /* cy=505304                                        */
+  --tum-content-top: 23.7683%; /* content, no lead block (layout 14/15)       */
+  --tum-content-h: 67.3428%; /* cy=3463775                                   */
+  --tum-content-top-lead: 34.7193%; /* content below a lead block (layout 11) */
+  --tum-content-h-lead: 56.3919%; /* cy=2900515                              */
+
+  --tum-band-top: 34.4333%; /* y=1771076 — grey panel / big-image top        */
+
+  --tum-logo-l: 89.8776%; /* "Bild 2" x=8218411                              */
+  --tum-logo-t: 6.2992%; /* y=324000                                         */
+  --tum-logo-w: 6.6139%; /* cx=604774 (cy=318516 -> aspect 1.899)            */
+
+  --tum-footer-l: 3.4029%; /* "Fußzeilenplatzhalter 3" x=311162              */
+  --tum-footer-t: 94.3907%; /* y=4854985                                     */
+  --tum-footer-w: 70.6942%; /* cx=6464280                                    */
+  --tum-chrome-h: 5.3241%; /* cy=273844                                      */
+  --tum-pagenum-l: 74.0916%; /* "Foliennummernplatzhalter 4" x=6774934       */
+  --tum-pagenum-w: 22.4418%; /* cx=2052074                                   */
+
+  /* Bullet indents — slideMaster5 <p:bodyStyle>. lvl1 has no bullet, so a
+   * markdown paragraph is lvl1 and a markdown list maps onto lvl2 / lvl3.    */
+  --tum-bullet-l1: 13.875px; /* lvl2 marL=176213 EMU, indent=-176213         */
+  --tum-bullet-l2: 14.5px; /* lvl3 marL=360363, indent=-184150               */
+  --tum-bullet-l3: 14px; /* lvl4 marL=538163, indent=-177800                 */
+}
