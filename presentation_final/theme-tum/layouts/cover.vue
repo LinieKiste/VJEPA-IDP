@@ -40,8 +40,10 @@ const chairLines = computed<string[]>(
 
     <TumLogo />
 
-    <h1 class="tum-cover-title"><slot name="title">{{ title }}</slot></h1>
-    <div class="tum-cover-info tum-rich"><slot /></div>
+    <div class="tum-cover-head">
+      <h1 class="tum-cover-title"><slot name="title">{{ title }}</slot></h1>
+      <div class="tum-cover-info tum-rich"><slot /></div>
+    </div>
 
     <img v-if="art" class="tum-cover-art" :src="art" alt="" />
   </div>

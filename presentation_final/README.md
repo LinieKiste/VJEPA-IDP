@@ -75,7 +75,31 @@ metric-compatible and is what the reference render used.
 | `two-cols` | slideLayout17 "1_zwei Inhalte" — use `::right::` |
 | `content-image` | slideLayout19 "1_Zwei Inhalte + Text"; `band: true` gives slideLayout21 "(Hintergrund)" |
 | `image` | slideLayout23 "1_große Bilder"; `size: full` gives slideLayout25 "1_Bilder formatfüllend" |
+| `figure` | **not in the pptx** — an addition for diagrams, see below |
 | `section` | **not in the pptx** — an addition, built from the TUM colour scheme |
+
+`layout: figure` is for **diagrams**, `layout: image` for **photos**. The pptx
+picture placeholders start at 34.4 % (`large`) or 23.8 % (`full`) and run to the
+slide edge: right for a full-bleed photo, wrong for a figure, which ends up
+pushed down the slide with its bottom labels behind the footer while the band
+under the title goes unused. `figure` hands the picture everything between the
+head text and 91.11 %, and letterboxes it there — the slide writes a bare
+`<img>` (or `<video>`/`<svg>`) with no wrapper div and no inline sizing:
+
+```md
+---
+layout: figure
+title: V-JEPA
+caption: optional grey line under the figure
+---
+
+<img src="/VJEPA_arch.png" alt="…" />
+```
+
+The top edge is **measured** from the rendered title/subtitle, not read off the
+placeholder geometry, because a long subtitle wraps to a second line and
+overruns its 6.25 % box (the Bland-Altman slide does exactly that). `pad: false`
+removes the 6 px of air under the head text.
 
 Head fields work as frontmatter or as slots (`::title::`, `::subtitle::`,
 `::lead::`) when you need rich content:
@@ -124,6 +148,41 @@ template's own `srcRect` crop (`l=398 t=14167 b=10833`, i.e. exactly 16:9) baked
 in. The wordmark is inline SVG in `theme-tum/components/TumLogo.vue`, traced
 from `ppt/media/image1.wmf`.
 
+## Citations
+
+Sources live in **`bib.ts`** — one entry per source, `kind: 'paper' | 'web'`. The
+citation number is the entry's position in that object, so the markers on the
+slides and the list on the "Quellen" slide cannot drift apart; inserting an entry
+renumbers everything after it and nothing hardcodes a number.
+
+| in a slide | renders |
+| --- | --- |
+| `<Cite id="sow" />` | superscript `[4]`, hover shows the full reference |
+| `<Cite id="sow,psnn" />` | `[4,5]` |
+| `<Cite id="sow" mode="short" />` | `Bagad et al. 2024`[4] |
+| `<Cite id="sow" mode="full" />` | the whole reference inline |
+| `<CiteFooter />` | source line for *this* slide, above the footer |
+| `<CiteFooter mode="short" />` | `[4] Bagad et al. 2024  [5] J. Wilson et al. 2019` |
+| `<References cols="2" />` | the full list (`id=` / `kind=` to filter) |
+
+`<Cite>` registers itself in `cite-registry.ts` (page → ids) and `<CiteFooter>`
+reads that back, so a slide's footnote line never repeats the ids. Pass
+`:footnote="false"` on a `<Cite>` to keep it out of the line, or give
+`<CiteFooter id="…">` an explicit list. An unknown id renders a red `[?]` instead
+of breaking the build. To get the footnote line on every slide automatically,
+drop `<CiteFooter />` into `theme-tum/layouts/default.vue` next to `<TumChrome>`.
+
+Metadata comes from the Zotero library (`~/Zotero/zotero.sqlite`, read on
+2026-08-13 through a copy — never open the live db while Zotero runs). Three
+entries are **not in Zotero** and still carry identifiers from memory:
+`jepa` (LeCun 2022), `dinov3`, `groundingdino` — verify before the talk. Zotero
+itself holds only title + authors for `vjepa` (Bardes et al.) and `egoper`
+(Lee et al.), so their venue/arXiv id is also unverified.
+
+`<CiteFooter>` on a `layout: image` slide overlays the picture, which runs to
+the slide edge — the strip has a translucent white backing so it stays readable,
+but on a full-bleed figure prefer citing only in `<References>`.
+
 ## Gotchas
 
 - Do not put blank lines or `#` comments inside the headmatter block — the
@@ -133,5 +192,14 @@ from `ppt/media/image1.wmf`.
   on every slide until it was split into `footer` + `noFooter`.
 - Layout roots must carry the `slidev-layout` class or none of the theme's base
   typography applies.
+- **A wrapping title must push what follows, not print on top of it.** Every
+  placeholder is pinned by a percentage from the pptx, so a two-line title keeps
+  its origin and grows downwards into the next box. `cover`, `cover-photo` and
+  `section` solve it in CSS — title and info flow inside one positioned
+  `.tum-cover-head`, with the info's `margin-top: 6.29px` reproducing the
+  template's gap for a one-line title. `figure` solves it in JS, because its
+  picture box has to know where the head text actually ended. The content
+  layouts (`default`, `two-cols`, `content-image`, `image`) are still pinned:
+  a title long enough to wrap will run into the subtitle there.
 - `slidev export` needs `pnpm add -D playwright-chromium`. Without it, build the
   SPA and screenshot it with system Chromium instead.

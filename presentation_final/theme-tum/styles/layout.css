@@ -150,6 +150,56 @@
   object-fit: contain;
 }
 
+/* -- Figure box (layout: figure) -------------------------------------------
+ * Not a pptx placeholder. Spans from just under the title — "Titel 1" ends at
+ * 5.7055 + 7.4037 = 13.11 % — down to the bottom of the content placeholder
+ * (23.7683 + 67.3428 = 91.11 %), i.e. everything the footer does not need.
+ * With a subtitle it starts under "Text Placeholder 18" (13.3067 + 6.2489
+ * = 19.56 %) instead.                                                       */
+.tum-figure {
+  position: absolute;
+  left: var(--tum-margin-l2);
+  /* Fallback; the layout overrides `top` with the measured head-text bottom. */
+  top: 13.11%;
+  bottom: 8.89%; /* 100 - 91.11 */
+  width: var(--tum-col-w);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+}
+.tum-figure--below-subtitle {
+  top: 19.56%;
+}
+.tum-figure--pad {
+  padding-top: 6px;
+}
+.tum-figure-box {
+  flex: 1 1 auto;
+  min-height: 0;
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+/* Whatever the slide drops in — <img>, <video>, an SVG — is letterboxed into
+ * the box rather than sized by the slide. */
+.tum-figure-box :is(img, video, svg) {
+  max-width: 100%;
+  max-height: 100%;
+  width: auto;
+  height: auto;
+  object-fit: contain;
+}
+.tum-figure-caption {
+  flex: none;
+  font-size: var(--tum-chair-size);
+  line-height: var(--tum-chair-line);
+  color: #666;
+  text-align: center;
+}
+
 /* -- Chrome --------------------------------------------------------------- */
 
 /* "Bild 2" (TUM wordmark) — off (8218411, 324000) ext (604774, 318516) --- */
@@ -220,12 +270,19 @@
   margin: 0;
 }
 
-/* layout7 "Titel 1" — off (319090, 972000) ext (8508999, 376238) --------- */
-.tum-cover-title {
+/* Title + info of the cover/section slides flow inside ONE positioned box
+ * instead of being pinned individually, so a title that wraps to a second line
+ * pushes the info block down rather than printing on top of it. The box sits
+ * at the title placeholder's origin — layout7 "Titel 1" off (319090, 972000). */
+.tum-cover-head {
   position: absolute;
   left: var(--tum-margin-l2);
   top: 18.8976%;
   width: var(--tum-col-w);
+}
+
+/* layout7 "Titel 1" ext (8508999, 376238) -------------------------------- */
+.tum-cover-title {
   padding-top: var(--tum-title-pad);
   font-size: var(--tum-title-size);
   line-height: var(--tum-title-line);
@@ -235,13 +292,13 @@
 }
 
 /* layout7 "Inhaltsplatzhalter 2" — off (319088, 1484040) ext (8508999,
- * 955594), lvl1pPr defRPr sz="1400" srgbClr 000000 ----------------------- */
+ * 955594), lvl1pPr defRPr sz="1400" srgbClr 000000.
+ * margin-top reproduces the template's gap for a ONE-LINE title: the info
+ * placeholder starts at 28.8527 % = 116.85 px, the title box at 76.53 px and
+ * a single 25 pt line is 34.03 px tall -> 6.29 px of air.                   */
 .tum-cover-info {
-  position: absolute;
-  left: var(--tum-margin-l2);
-  top: 28.8527%;
-  width: var(--tum-col-w);
-  height: 18.5787%;
+  margin-top: 6.29px;
+  min-height: 75.24px; /* ext cy=955594 -> 18.5787 % of 405 px */
   padding-top: var(--tum-body-pad);
 }
 

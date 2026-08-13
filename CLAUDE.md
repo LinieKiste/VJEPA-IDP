@@ -278,6 +278,346 @@ curve figure and the metric table come from identical numbers.
   **Bland-Altman limits** (−69 to +63 g) as the honest worst case. Keep R² only for
   comparability with other papers, always paired with the skill score.
 
+**SINGLE FINAL READING — one prediction per pour (2026-08-06, `final_reading` analysis,
+CPU, 121 clips, 4-fold OOF).** Asks the deployment question directly: take each model's LAST
+window prediction, compare against the scale's final reading. Distinct from every volume
+number above, which averages over all windows and so mixes in "how far into the pour are we".
+
+| single final reading | modality | MAE | medAE | bias | R² | ≤50 g |
+|---|---|---|---|---|---|---|
+| SoW wav2vec + V-JEPA + clock | A+V | **33.5 g** | 28.7 | +1.0 | 0.781 | 79% |
+| **SoW wav2vec + clock** | audio | **34.0 g** | 28.9 | +4.8 | 0.772 | 78% |
+| SoW wav2vec (no clock) | audio | 37.9 g | 32.2 | +3.4 | 0.698 | 71% |
+| V-JEPA + clock (ridge) | video | 41.3 g | 35.1 | +1.4 | 0.668 | 64% |
+| raw-time clock | clock | 52.2 g | 53.3 | +27.7 | 0.525 | 46% |
+| V-JEPA attentive volume | video | 66.5 g | 60.3 | −0.7 | 0.134 | 47% |
+| *predict-mean final mass* | *trivial* | *76.7 g* | *76.2* | +0.2 | −0.016 | 31% |
+| time_prof (ORACLE duration) | clock | 77.1 g | 72.4 | +8.3 | −0.023 | 34% |
+| V-JEPA ridge (vision only) | video | 79.6 g | 78.0 | −5.4 | −0.094 | 32% |
+
+- **Audio beats video on the final reading, and the fusion adds ~nothing** (34.0 → 33.5 g).
+  Strongest form yet of "audio wins on volume": SoW+clock beats V-JEPA+clock by 7 g.
+- **Vision ALONE is worse than guessing the mean** (79.6 vs 76.7 g). Frozen V-JEPA carries
+  essentially no readable absolute fill level at the end of a pour; so does the oracle-duration
+  time profile (77.1). Yet V-JEPA+clock (41.3) beats clock alone (52.2) — **synergy, not
+  addition**: vision cancels the clock's +27.7 g systematic overshoot (down to +1.4).
+- **Reading the last window of a cumulative-volume model is the WRONG tool** (66.5 g, LoA
+  ±162 g). Integrating the FLOW probe scores 26.2 g against the same truth — the trajectory
+  carries far more than the final frame.
+- **⚠ The 23.2 g headline total-mass figure is scored against the wrong truth.**
+  `totals_from_flow` (`clips_eval_protocol.py:112`) trapezoids over window CENTRES, dropping the
+  first/last 0.5 s, so its "GT" sits **12.1 g below** the scale's actual final reading. Against
+  the true final mass the attentive probe is **26.2 g MAE / 17.8 medAE, bias −15.1 g**
+  (63% ≤25 g, not 74%). Extending the integral to the clip bounds recentres bias to +6.7 g at
+  the same MAE and tightens the low LoA (−65 vs −85 g) — the better convention. **Not yet fixed
+  in the script or the deck.**
+- `predict-mean` in `clips_eval_protocol.py` averages over WINDOWS, so as a final-reading control
+  it is unfair (84.3 g, −57 g bias). The honest floor is the mean training-fold FINAL mass.
+
+**EXTERNAL OUT-OF-DOMAIN SET (`datasets/eval/`, 9 iPhone 4K pours, 2026-08-06).**
+`eval_external.py` (inference, ~5 min GPU) + `eval_external_figs.py` (4 figures →
+`datasets/eval/figs/`). 3 scenes: kettle→stockpot (0866/0868/0872), jug→cup-on-tray
+(0875/0877), and a very wide outdoor table (0879–0882) where the vessel is ~2% of frame.
+GT = one final volume per video, no trace. Ensemble of the 4 lag-0.7 fold checkpoints;
+inter-fold spread doubles as an uncertainty band.
+- **Totals do NOT transfer: MAE 153 g / medAE 81 g, bias +74 g, r 0.62** (vs 23–26 g in-domain).
+- **But the SHAPE does.** The predicted flow curves localise *when* pouring happens correctly in
+  every video — single bells for the outdoor pours, a 12 s plateau for the long kettle pours,
+  a 3-hump curve for the multi-pour 0875 — in scenes and at scales the probe never saw.
+- **Root cause of the indoor over-prediction: the probe has no concept of "not pouring".** Every
+  training clip is tightly cut to a pour, so it never saw a non-pour frame and has no zero. Its
+  resting predicted flow is **20–35 g/s indoors** vs 3–4 g/s outdoors, and the integral
+  accumulates that phantom flow over the whole untrimmed video. Subtracting each video's 10th
+  percentile lifts **r 0.62 → 0.81** (MAE 153 → 130 g, bias flips to −91 g): the floor is an
+  offset problem, not a shape problem. **Fix = train with non-pour segments, or gate on a
+  pour/no-pour detector; do NOT feed untrimmed video to the current probe.**
+- Outdoor set under-predicts (bias −32 g) — at ~2% of frame the stream is near-invisible.
+- **`datasets/eval/gt.csv` is a bare column of 9 numbers, no filename column**; row order ==
+  filename sort order (capture timestamps agree). **CONFIRMED CORRECT by the user 2026-08-06.**
+- **IMG_0868 is a deliberate TRICKLE test and is the single most damning result in the set.**
+  It is a kettle→stockpot pour visually near-identical to IMG_0866 (895 g) but poured slowly:
+  **GT 128 g, predicted 721 g — 5.6× over.** The probe cannot tell a trickle from a gush in an
+  unseen scene; it anchors on the *appearance* of "kettle tilted over pot" and reports the
+  flow rate that pose implies in the training set. Directly reinforces the phantom-floor
+  finding: on 0868 the predicted flow sits on a flat ~45 g/s plateau for 12 s with no
+  amplitude modulation at all. **Rate discrimination, not just the zero point, fails
+  out-of-domain.**
+- **Naming: the set was `datasets/eval/Evan/` (an autocorrect of "eval"); renamed to
+  `datasets/eval/videos/` 2026-08-08.** No `Evan` string survives in code or notes.
+
+**ZERO-POUR STRESS TEST — YouTube street walk (2026-08-09).** User asked: do the methods
+predict flow on *unrelated* videos? Downloaded the first 15 s of
+`youtube.com/watch?v=1aedKShR1rA` ("Manhattan Evening Walk", 640×360) with
+`uvx yt-dlp ... --downloader ffmpeg --external-downloader-args "ffmpeg_i:-ss 00:00:00 -t 00:00:15"`
+→ `datasets/eval/videos/manhattan_15s.mp4`, wired into the demo pipeline as a new `"yt"`
+source kind (`eval_videos.py` `load_yt`; renderer skips the GT reference line when
+`gt_total` is NaN → row shows "k.A."). Demo: `datasets/eval/demo_videos/yt_manhattan_15s.mp4`.
+- **Both probes hallucinate flow on a scene with ZERO pouring:** V-JEPA attentive
+  mean **37 g/s** (peak 48.6), integral **560 g** in 15 s; DINOv3 mean **66 g/s**
+  (peak 128.4), integral **994 g**. The V-JEPA curve is a near-flat 30–48 g/s plateau —
+  the same phantom floor as the external pours, but with no kettle/pour pose in frame
+  at all. The probe's resting prediction is a constant offset, not a response to any
+  visual pouring cue. This is the strongest form yet of "the probe has no concept of
+  not pouring": it was never shown a non-pour frame, so 0 g/s is off its manifold.
+  GT row shows k.A. (no scale was involved).
+- The `"yt"` kind stays in `SOURCES` like the external videos; predictions land in the
+  usual `eval_videos_preds.npz` under `yt_manhattan_15s__*`.
+
+**SIDE-BY-SIDE DEMO VIDEOS (`eval_videos.py` + `eval_videos_render.py`, 2026-08-08).**
+Renders one mp4 per pour: the video on the right (with the 256 px centre crop the encoders
+see outlined), and on the left a live readout of instantaneous flow + cumulative poured mass
+for GT and three probes, over synchronised time plots with a sweeping cursor. Built for the
+talk — it makes both the successes and the out-of-domain failures legible in one glance.
+Outputs in `datasets/eval/demo_videos/`; predictions cached to
+`~/.cache/pour_probe/eval_videos_preds.npz` (`--infer` = GPU ~4 min, `--render` = CPU ~3 min).
+- **All three probes are the SAME fold-A split** (val trials 8/13/21/24) so the comparison is
+  matched and every own-lab source shown is genuinely held out: V-JEPA 2 attentive, DINOv3
+  attentive (+temporal embedding), and Sound-of-Water wav2vec→ridge (refit here on the
+  non-fold-A windows, alpha chosen by inner CV over folds B/C/D; inner R² +0.552).
+- **Totals use the CLIP-BOUND integral, not the window-centre one** — `cumulative()` holds
+  the flow constant out to [0, dur], fixing the ~12 g low bias of `totals_from_flow`. The
+  printed table and the plotted curves share that one function, so they cannot drift apart.
+- GT flow is drawn exactly as `build_windows` defines the training target (1.0 s difference
+  of the weight curve sampled at +0.7 s), so the black curve is the thing the probe was
+  actually trained to predict. External pours have no trace → "k.A." instantaneous, a dotted
+  final-mass line on the cumulative panel.
+- **ALL ON-SCREEN TEXT IS GERMAN — keep it that way** (the talk is in German). Code, comments
+  and docstrings stay English. That includes the `SOURCES` blurbs (they become the video
+  titles) and the numbers: `eval_videos_render.de()` swaps in a German decimal comma, so
+  readouts show `58,1` not `58.1`. Every model row carries an explicit label and the
+  reference row is named **"Ground Truth (Waage)"** / **"Ground Truth: SoW-Physik,
+  GEMESSENER Radius"** — never leave the GT row unlabelled.
+- **Locked German terms (user's wording 2026-08-09 — do NOT paraphrase):** flow rate =
+  **Flussrate**, cumulative poured mass = **Masse insgesamt**, poured (g) = **Schüttvolumen
+  (g)**, trickle = **langsames Schütten**, a pour = **Schüttvorgang**. `Schüttvolumen` labels
+  an axis in GRAMS (water: 1 g = 1 mL) — the user's choice, and it matches the deck.
+- **The audio row is switched OFF for every source** (2026-08-09). The wiring stays in
+  `eval_videos.py` — put `"sow"` back in a source's models tuple to re-enable — but it is not
+  SoW's method and mixing it in invited exactly that misreading. `fit_sow_ridge()` is skipped
+  entirely when no source asks for it.
+
+**THREE DEMO SLIDES AT THE END OF `presentation_final/slides.md` (2026-08-09).** Videos copied
+into `public/` as `demo_eigen_schnell.mp4` (clip 0016, in-domain, works), `demo_extern_langsam.mp4`
+(IMG_0868, the trickle failure) and `demo_sow_vergleich.mp4` (the SoW comparison) — the arc is
+*works → fails out of domain → fair fight against audio*.
+- **Size the `<video>` by HEIGHT, not width.** `canvasWidth: 720` means 1 CSS px = 1 pt, so
+  `width: 100%` makes a 16:9 clip ~354 pt tall and it runs off the slide (the plots and the
+  caption vanish under the footer). `height: 234px; width: auto` fits with room for a
+  one-line caption. The same one-line-HTML rule as for images applies.
+- **Re-encode the deck copies** (`-crf 26 -preset slow -an`): 8.3 MB → 1.0 MB. The full-size
+  file also made headless Chromium fail to screenshot that slide at all, which is how the
+  overflow was nearly missed. Originals in `datasets/eval/demo_videos/` are untouched.
+
+| source | GT g | V-JEPA | DINOv3 | SoW |
+|---|---|---|---|---|
+| 0047 own-lab, teapot→mug, 31 g / 3.3 s (9.3 g/s) | 31 | 87 | 76 | 39 |
+| 0016 own-lab, kettle→glass, 335 g / 5.7 s (59 g/s) | 335 | 244 | 350 | 229 |
+| 0045 own-lab CAM3, teapot→mug, 244 g / 7.0 s | 244 | 236 | 227 | 251 |
+| IMG_0866 external, kettle→stockpot | 895 | 719 | 763 | 255 |
+| **IMG_0868 external, TRICKLE** | **128** | **855** | **604** | **668** |
+
+- **The 0866/0868 pair is the whole out-of-domain story in two videos.** Near-identical
+  scenes; GT 895 vs 128 g. V-JEPA predicts **719 vs 855 g** — i.e. it predicts *more* for the
+  pour that delivered **7× less**. The rate ordering is not merely compressed, it is
+  **inverted**. DINOv3 (763 vs 604) and SoW (255 vs 668) get the ordering right but the
+  magnitude hopelessly wrong. Restates the 5.6× figure above under the fold-A / clip-bound
+  convention (that 721 g was the 4-fold ensemble with the window-centre integral).
+- **In-domain the same probes are fine** (0016: 244/350/229 vs 335; 0045: 236/227/251 vs 244)
+  and track the GT bell shape closely — so the demo shows competence and failure side by side
+  rather than only one of them.
+- **The slow in-domain clip 0047 (9.3 g/s) already over-predicts ~2.5×** (87 vs 31 g) even
+  though its trial is only held out, not out of domain. So the trickle failure is not purely
+  a domain-shift effect: **low flow rates are the probe's weak regime everywhere**, and the
+  out-of-domain trickle is the extreme of a bias that is visible in-distribution. This is a
+  new finding — the aggregate metrics never separated it out.
+- **The audio row was REMOVED from the two external videos (2026-08-08) and must stay out.**
+  It is not "Sound of Water" — it is `sow_feats_for` taking ONLY the 768-d wav2vec2 features
+  (`_, feats = sm.predict_axial(...)`; the decoded λ is discarded and `sow_physics` is never
+  imported) and OUR ridge supplying the g/s. On the external pours that ridge faces three
+  stacked shifts: iPhone mic + kitchen vs GoPro + lab, stockpot vs mug/glass, and — the one
+  specific to audio — **durations of 14.2 / 17.0 s against a ridge fit on 2.6–8.7 s clips.**
+  SoW injects ABSOLUTE time into its features (`TimeEncodingDiscreteSinusoidal`, 49 fps), so
+  past ~8.7 s the ridge is extrapolating, not transferring. Its numbers there said nothing
+  about audio pouring estimation. The row is still shown on the own-lab clips, where the
+  comparison is matched, and is labelled **"SoW wav2vec2 + our ridge"** everywhere.
+
+**WHY SoW's PHYSICS ROUTE IS CLOSED ON OUR DATA — and it is NOT missing measurements
+(settled 2026-08-08).** The natural objection is "SoW estimates the container radius from
+audio, so run their real pipeline". They do, and it works: MAE 1.39 cm (Test I) / 1.88 cm
+(Test II, unseen containers). But the estimator is **not** the `radial_head` (the paper:
+"we only use axial resonance in training"). It is `shared/utils/physics.py:320`:
+
+    def estimate_cylinder_radius(wavelengths, timestamps=None, beta=0.62):
+        radius_pred = ((1. / beta) * (wavelengths[-1] / 4.)).item()
+
+i.e. Eq. (6) `R = λ(T)/4β` from the **last** axial wavelength, with β a fixed global 0.62
+(per SHAPE — 1.28 semi-conical — **not** per container; an earlier note in `sow_physics.py`
+said per-container and was wrong).
+- **It carries the boundary condition l(T) = 0: the vessel is FULL when the audio ends.**
+  That is how Eq. (5)/(6) is derived, and it is the same fill-to-completion assumption behind
+  the `t/T` degeneracy already documented above — biting in a second, independent place.
+- **Our pours never fill the vessel**, so λ(T) encodes the leftover air column. Measured over
+  our 121 clips: the SAME blue_mug across 48 pours gives **R = 1.7–11.4 cm**; within-container
+  variance is **28×** the between-container variance; and **corr(R̂, poured mass) = −0.48**.
+  It is reading fill level, not geometry. On the eval videos, the same stockpot yields an
+  implied diameter of **34.5 cm (IMG_0866) vs 12.1 cm (IMG_0868)** — 2.9× apart.
+- **So the frozen-features + our-ridge route was the only way to put SoW on our data at all.**
+  Say it that way: the physics route is blocked by a design assumption of their task, not by
+  anything missing on our side, and not by a flaw in their paper.
+
+**SoW COMPARISON VIDEO — on THEIR data, where it IS a fair fight
+(`eval_videos.py --sow`, 2026-08-08).** `datasets/eval/demo_videos/sow_VID_20240417_000535_2.2_8.0.mp4`.
+Their pours fill the vessel, so Eq. (6) runs as published and all three estimates are
+commensurable. Video `VID_20240417_000535_2.2_8.0`, container_7 (transparent cylinder,
+**held out** from the S1 probe — the split at `--split_seed 0` holds out container_3 +
+container_7, 81/212 videos). Panels: poured volume in mL, plus **λ(t)**, which shows where
+the radius estimate comes from.
+
+| final volume | mL |
+|---|---|
+| SoW physics, MEASURED radius (2.88 cm) — the target our probe trained against | 198 |
+| SoW physics, radius ESTIMATED from λ(T) (2.49 cm, 0.87×) | 149 |
+| V-JEPA 2 attentive (ours) | 247 |
+
+- **Their radius estimator is accurate here** (2.49 vs 2.88 cm, 13% low) — exactly the regime
+  the paper reports. Volume scales with R², so that 13% becomes a **−25% volume** offset; the
+  green curve is the right SHAPE, scaled down.
+- Our probe over-shoots by +25%; theirs under-shoots by −25%. Neither is clearly better on
+  this one video, which is the honest read — and note their "GT" is itself a physics decode,
+  not a scale, so this compares a video probe against an audio-physics estimate.
+- The λ(t) curve is a clean monotone 37 → 6 cm. That is the signal our own recordings cannot
+  supply an endpoint for.
+
+**BACKBONE / CAPACITY / RESOLUTION SWEEP (2026-08-07, all fold A, flow, both cams,
+lag 0.7, 31 epochs / 3193 steps each unless noted, all logged to `pour_probe_clips_attn`).**
+**Compare runs on `ckpt_val_r2`** (the selected checkpoint, = the printed "attn ckpt
+(combined)"). Mixing it with `val_r2` (final epoch) silently inflates deltas — that mistake
+was made once here.
+
+| fold A, flow, lag 0.7, both cams | ckpt_val_r2 | CAM2 | CAM3 | MAE |
+|---|---|---|---|---|
+| **V-JEPA 2, img 384** | **0.870** | 0.901 | **0.840** | 8.66 |
+| V-JEPA 2, img 256 (the baseline) | 0.849 | 0.898 | 0.801 | 8.08 |
+| V-JEPA 2, img 256, unfreeze last 4 blocks | 0.840 | 0.872 | 0.808 | 8.67 |
+| V-JEPA 2, unfreeze 4 + **ROI crop** | 0.795 | 0.819 | 0.771 | 9.70 |
+| **DINOv3 + temporal embedding** | 0.792 | 0.821 | 0.762 | 9.87 |
+| V-JEPA 2 ridge mean-pool (LINEAR) | 0.766 | — | — | 13.13 |
+| DINOv3 **without** temporal embedding | 0.679 | 0.735 | 0.622 | 13.39 |
+| time_prof (ORACLE duration) | 0.621 | — | — | 15.52 |
+
+**(1) RESOLUTION IS THE ONLY LEVER THAT WON — and only on the far camera.** 384 (on a new
+416-px frame cache, `clips_grid_cache.py --size 416 --out ...`) gives **+0.021** over 256,
+epoch-matched (both exactly 31 epochs / 3193 steps; 384 needed 240 min vs 80, ~7.6 min/epoch).
+The gain is **CAM3 +0.039, CAM2 +0.003** — CAM3 is the distant view where the stream occupies
+fewest pixels, so resolution helps exactly where the signal was pixel-starved. Mechanistically
+coherent, and it says where to spend pixels next. Caveat: one fold, and fold-to-fold spread is
+±0.04, so this is suggestive, not decisive — needs folds B/C/D to confirm.
+
+**(2) PARTIAL FINE-TUNING BUYS NOTHING — the frozen-backbone premise is now TESTED, not
+assumed.** Unfreezing the last 4/24 blocks (50.4M of 303.9M params, separate AdamW group at
+lr 1e-5) gives **−0.009**. Verified before the run that gradients genuinely reach those blocks
+and update them, and that block[-5] stays frozen — this is a real null, not broken plumbing.
+1636 windows is far too little to improve a 300M-param representation. Consistent with
+"head-init barely matters": the representation is already good enough and is doing the work.
+**Answers the standing objection "you'd do better with fine-tuning" with a measurement.**
+Note 384 + unfreeze does NOT fit in 16 GB at batch 16 (384 alone is 12.0/16.3 GB frozen).
+
+**(3) DINOv3 — the first run was CRIPPLED BY MY OWN BUG; the corrected gap is −0.057, not
+−0.170.** DINOv3 encodes each frame independently, so every frame emitted tokens with
+identical positional content, and the head (3 permutation-equivariant self-attn blocks + a
+permutation-INVARIANT 1-query cross-attn pool) was **frame-order blind — motion direction was
+unrecoverable in principle**. Adding a fixed sinusoidal TIME stamp per frame
+(`_dino_encoder.py::sincos_temporal`, scaled to 0.5x the batch token RMS; non-learned, so the
+backbone stays honestly frozen) is worth **+0.113** (0.679 → 0.792).
+- **Do NOT quote 0.679 as DINOv3's performance.** And the retracted claim "a linear V-JEPA
+  ridge beats an attentive DINOv3 head" is FALSE once fixed: 0.792 > 0.766.
+- V-JEPA still wins, but by 0.057 on one fold vs a ±0.04 spread — "decisively worse" is not
+  supportable. Held fixed for the comparison: 2048 tokens x 1024-d (8 frames x 256 patches,
+  mirroring tubelet_size=2), ImageNet norm, same head/init/schedule.
+- **Lesson: a linear pilot under-predicts an attentive result.** The ridge pilot said
+  DINOv3-best 0.669 vs V-JEPA 0.718 and predicted 0.75–0.78; the attentive run hit 0.792.
+
+**(4) ROI CROP LOSES WITHIN-VIEW, 4th independent confirmation** (−0.045 here with a
+fine-tuned backbone; −0.10 V-JEPA frozen; −0.075 DINOv3 ridge on ALL 8 temporal reps). So it
+is not a frozen-features artefact. ROI's niche remains ONLY the unseen-camera case — and,
+untested, the out-of-domain shortcut problem the eval set exposed (it is the natural fix for
+"kettle-over-pot pose ⇒ predict fast", but that needs measuring ON the eval set, not fold A).
+
+**DINOv3 TEMPORAL-REPRESENTATION PILOT (`dino_pilot.py`, CPU ridge on cached per-frame
+features, experiment `pour_probe_dino_pilot`, 23 runs).** Cheap way to choose a representation
+before spending 80-min runs. Flow @ lag 0.7, 4-fold OOF by trial, 2170 windows:
+
+| temporal representation | dim | center | ROI |
+|---|---|---|---|
+| mean over frames (ORDER-BLIND) | 1024 | 0.453 | 0.382 |
+| first+last concat | 2048 | 0.653 | 0.559 |
+| **mean + signed endpoint diff** | 2048 | **0.669** | 0.594 |
+| all frames concat (ordered) | 8192 | 0.626 | 0.524 |
+| all diffs concat (ordered) | 7168 | 0.423 | 0.338 |
+| *V-JEPA 2 mean-pool ridge (reference)* | 1024 | *0.718* | — |
+
+- **Order alone is worth +0.216** (0.453 → 0.669) — this is what diagnosed the missing
+  temporal embedding.
+- **⚠ `mean-of-consecutive-diffs` TELESCOPES to `(last−first)/(T−1)`** — it is a pure ENDPOINT
+  feature. A temporal-resolution sweep built on it returned identical R² at 4/8/16/24 Hz
+  because of that algebraic identity, not because resolution is irrelevant. Do not reuse it as
+  a "motion" feature.
+- **FUSION: V-JEPA + DINOv3 = 0.719 vs V-JEPA alone 0.718.** DINOv3 carries essentially NO
+  flow information V-JEPA lacks — closes off the "just ensemble them" route.
+
+**REPRESENTATION STABILITY — dense 1-FRAME-STRIDE sliding-window inference (2026-08-08,
+supervisor request; `clips_stability.py` + `clips_stability_figs.py`, experiment
+`pour_probe_stability`, figures `datasets/eval/figs/fig_stability_*.png`).** Answers "does
+a tiny change in input frames change the output?" — i.e. is any reported curve an accident
+of where the window landed? Fold-A checkpoint on fold A's HELD-OUT trials (8/13/21/24),
+1.0 s windows stepped by ONE frame (~33 ms) instead of the usual 0.5 s stride:
+**6650 windows over 60 clips**.
+
+⚠ **The frame overlap is NOT what it looks like.** Consecutive windows overlap 96.7% in TIME
+SPAN, but the probe samples only 16 frames out of the 30-frame span (~every 2nd frame), so
+consecutive windows land on INTERLEAVED sets — window 0 → frames [0,1,3,5,…,29], window 1 →
+[1,2,4,…,30]. They share **1 of 16 actual frames**. So this is a stronger test than "almost
+the same input": 15/16 of the images are different files showing a scene displaced by 33 ms.
+Do not describe it as "shares 29/30 frames" (an earlier note did; it confuses span with
+sampled frames).
+
+| quantity | value |
+|---|---|
+| prediction spread (1–99 pct) | 123.3 g/s (sd 34.8) |
+| \|Δpred\| for a 1-FRAME shift | mean **3.39**, median 1.84, p95 11.37 g/s |
+| ground truth, same shift | mean 1.86, median 0.38 g/s |
+| → as % of the model's own output range | **2.75%** |
+| → as % of the SHUFFLED control | **10%** |
+
+- **The headline number is the shuffled control, not the raw g/s.** Randomly permuting which
+  window each prediction belongs to gives mean \|Δ\| = 33.7 g/s. The real 1-frame shift gives
+  3.39 — **10% of that**. So the prediction is strongly determined by the input, not by where
+  the window happened to land.
+- **The change-vs-shift curve is the real evidence** (`fig_stability_summary.png`, left).
+  Mean \|pred(t+k) − pred(t)\| rises smoothly: k=1 → 3.39, k=5 → 6.73, k=15 → 15.41,
+  k=30 → 29.48 g/s, approaching the shuffled ceiling only at k≈30 (a full non-overlapping
+  window). An unstable model would sit at the shuffled level from k=1. From k≈5 onward the
+  model's curve tracks the GROUND TRUTH's own curve almost exactly — it changes at the rate
+  the true signal changes.
+- **Honest nuance: the model's 1-frame jitter is 1.82x the GT's** (3.39 vs 1.86 mean; medians
+  1.84 vs 0.38). Do NOT claim "smoother than the signal". Much of that gap is an artefact of
+  the GT, not model noise: the GT is a **quantised staircase** (1 g scale resolution, then
+  isotonic regression per pour ⇒ long exactly-flat stretches and occasional jumps), so most
+  of its steps are exactly zero. The model output is continuous. The fair statement is
+  *"a one-frame input change moves the prediction by ~3% of its output range, one tenth of
+  chance"*.
+- **Holds for the 384 model too, slightly better** (same 60 clips / 6650 windows):
+  \|Δpred\| mean **3.02** g/s (vs 3.39), p95 **9.71** (vs 11.37), **9.4%** of its shuffled
+  control (vs 10.0%), jitter/GT **1.62x** (vs 1.82x). As a share of output range the two are
+  identical (2.77% vs 2.75%) because 384's spread is tighter (109 vs 123 g/s). So the
+  higher-resolution model is not bought at the cost of stability — it is marginally steadier.
+- Practical corollary: the 0.5 s eval stride is not undersampling — the dense curve traces the
+  same shape through the coarse samples (`fig_stability_curves.png`).
+- ⚠ `clips_stability.py` must filter clips by trial BEFORE materialising frames;
+  `ca.load_clips()` loads every clip's frame array (~18.6 GB across both cams at 416 px) and
+  the process gets OOM-killed. Also: launching via `nohup ... &` means the harness tracks the
+  LAUNCHER, not the python — two 384 runs once ran concurrently and starved each other of RAM.
+
 **Key sub-findings (each independently confirmed):**
 - **Water-transit lag** — the scale registers mass ~0.7 s AFTER the stream is visible (fall
   time + load-cell/display filtering). The R²-vs-lag curve is asymmetric (target sampled
@@ -535,6 +875,44 @@ guide** (build, page map, figure regeneration, run record) — read it first.
 - Build/preview: `npx slidev` (dev) or `npx slidev build`. No playwright installed, so
   `slidev export` fails; to screenshot, build then serve the dist through an SPA-fallback
   static server and drive `/usr/bin/chromium --headless --screenshot`.
+
+## Final deck (`presentation_final/`)
+The **talk deck** (14.08.2026), on a local `theme-tum` Slidev theme reproducing the TUM
+pptx template pixel-for-pixel. Everything lives in one `slides.md` (`pages/` is empty).
+`presentation_final/README.md` is the authority — how the theme was derived from the OOXML,
+the layout table, and the gotchas.
+- **Architecture figures are generated with PlotNeuralNet** (vendored MIT, `figs_src/`):
+  `../.venv/bin/python figs_src/attentive_probe.py` → `public/attentive_probe.png`.
+  **No TeX is installed system-wide** — the script finds `tectonic` (or `pdflatex`) on PATH;
+  a standalone tectonic binary works fine, `pdftoppm` does the raster at 300 dpi.
+  PlotNeuralNet quirks that cost time: `to_Conv(width=...)` needs `"{4,4,4}"` (braces, or
+  pgfkeys reads the entries as keys), `n_filer` needs one entry PER concatenated box, and
+  `to_input`'s node has no `-east` anchor (draw from a plain coordinate).
+- **Citations: `bib.ts` + `<Cite>` / `<CiteFooter>` / `<References>`** (`components/`,
+  added 2026-08-13). One entry per source in `bib.ts`; the number IS the entry's position
+  there, so markers and the "Quellen" slide can't drift. `<Cite>` registers into
+  `cite-registry.ts` keyed by page, `<CiteFooter>` prints that page's sources above the
+  footer, `<References cols="2"/>` renders the full list. Unknown id → red `[?]`, never a
+  build failure. Details in `presentation_final/README.md § Citations`. Metadata filled from
+  **Zotero** (`~/Zotero/zotero.sqlite` — copy it first, the live db is locked while Zotero
+  runs; items + `itemData`/`itemCreators` joins give authors/venue/DOI). **Not in the library
+  and therefore unverified: LeCun 2022 JEPA, DINOv3, Grounding DINO; and Zotero holds only
+  title+authors for V-JEPA 1 (Bardes) and EgoPER (Lee).**
+- **Diagrams go in `layout: figure`, photos in `layout: image`** (figure added 2026-08-13,
+  `theme-tum/layouts/figure.vue`). The pptx picture boxes start at 34.4 %/23.8 % and run to
+  the slide edge, so a tall figure sits too low with its bottom labels under the footer.
+  `figure` spans from the head text to 91.11 % and letterboxes — write a bare `<img>`, no
+  wrapper div, no inline sizing. Its top edge is MEASURED from the rendered title/subtitle
+  (a long subtitle wraps and overruns its 6.25 % box). Used by the V-JEPA, attentive-probe
+  and Bland-Altman slides.
+- **A wrapping title overlaps the next block** — every placeholder is pinned by a pptx
+  percentage, so a two-line title grows down into whatever follows. Fixed 2026-08-13 for
+  `cover`/`cover-photo`/`section` (title + info now flow inside one `.tum-cover-head` box)
+  and for `figure` (measures the head text). **`default`/`two-cols`/`content-image`/`image`
+  are still pinned** — a title long enough to wrap will collide with the subtitle there.
+  Still true for hand-placed HTML: keep inline HTML on ONE line; a multi-line `<img …>`
+  loses its attributes to the markdown parser (the `style` silently vanishes and the image
+  overflows/clips).
 
 ## Misc
 - (Add homeless notes here.)

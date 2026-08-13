@@ -25,13 +25,15 @@ CLIPS = ROOT / "datasets" / "pouring_processed" / "clips"
 CACHE = Path(os.environ.get("POUR_FRAMES288_DIR", "/home/casimir/.cache/pour_probe/clips_frames288"))
 
 
-def crop288(img):
+def crop_sq(img, size=288):
+    """Short-side resize to ``size`` then centre-crop square. ``size`` must leave a
+    margin over the encoder's crop (288/256 by default) for the random-crop augmentation."""
     h, w = img.shape[:2]
-    s = 288 / min(h, w)
+    s = size / min(h, w)
     r = cv2.resize(img, (round(w * s), round(h * s)), interpolation=cv2.INTER_AREA)
     ch, cw = r.shape[:2]
-    y0, x0 = (ch - 288) // 2, (cw - 288) // 2
-    return r[y0:y0 + 288, x0:x0 + 288]
+    y0, x0 = (ch - size) // 2, (cw - size) // 2
+    return r[y0:y0 + size, x0:x0 + size]
 
 
 def load_gt(clip_id):
@@ -46,8 +48,14 @@ def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--cam", default="CAM2")
     ap.add_argument("--overwrite", action="store_true")
+    ap.add_argument("--size", type=int, default=288,
+                    help="cached frame size; use 416 for a 384-px encoder run")
+    ap.add_argument("--out", default="", help="override cache dir (default POUR_FRAMES288_DIR)")
     args = ap.parse_args()
 
+    global CACHE
+    if args.out:
+        CACHE = Path(args.out)
     (CACHE / args.cam).mkdir(parents=True, exist_ok=True)
     manifest = list(csv.DictReader(open(CLIPS / "clips_manifest.csv")))
     for row in tqdm(manifest, desc=f"cache {args.cam}"):
@@ -57,7 +65,7 @@ def main():
             continue
         vr = decord.VideoReader(str(CLIPS / args.cam / f"{cid}.mp4"))
         fps = float(vr.get_avg_fps())
-        frames = np.stack([crop288(f) for f in vr[:].asnumpy()]).astype(np.uint8)
+        frames = np.stack([crop_sq(f, args.size) for f in vr[:].asnumpy()]).astype(np.uint8)
         gt_t, gt_w = load_gt(cid)
         np.savez(out, frames=frames, fps=fps, gt_t=gt_t, gt_w=gt_w,
                  trial_id=row["trial_id"], weight_final=float(row["weight_g"]),

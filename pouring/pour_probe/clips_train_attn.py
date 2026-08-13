@@ -82,32 +82,43 @@ def build_windows(cams, window_s, stride_s, num_frames, lag_s=0.0):
     return wins
 
 
-def sample_window(clip, w, num_frames, train, rng):
-    """Return (num_frames, 256, 256, 3) uint8 with augmentation if train."""
+def sample_window(clip, w, num_frames, train, rng, crop=256):
+    """Return (num_frames, crop, crop, 3) uint8 with augmentation if train.
+
+    The random-crop jitter is whatever margin the cached frames have over ``crop`` (32 px
+    at the default 288 cache / 256 crop), so a bigger cache keeps the same augmentation
+    behaviour at a higher resolution."""
     frames, fps, N = clip["frames"], clip["fps"], len(clip["frames"])
     t0, t1 = w["t0"], w["t1"]
     if train:                                   # temporal jitter ±0.1 s
         j = (t1 - t0) * 0.1
         t0 = max(0.0, t0 + rng.uniform(-j, j)); t1 = min(N / fps, t1 + rng.uniform(-j, j))
     idx = np.clip((np.linspace(t0, t1, num_frames) * fps).astype(int), 0, N - 1)
-    fr = frames[idx]                            # (T,288,288,3)
-    if train:                                   # random 256-crop from 288
-        y0, x0 = rng.integers(0, 33), rng.integers(0, 33)
+    fr = frames[idx]                            # (T,S,S,3)
+    margin = fr.shape[1] - crop
+    if margin < 0:
+        raise ValueError(f"frame cache is {fr.shape[1]}px but crop is {crop}px")
+    if train and margin > 0:                    # random crop from the cached frame
+        y0, x0 = rng.integers(0, margin + 1), rng.integers(0, margin + 1)
     else:
-        y0 = x0 = 16                            # center crop
-    fr = fr[:, y0:y0 + 256, x0:x0 + 256]
+        y0 = x0 = margin // 2                   # center crop
+    fr = fr[:, y0:y0 + crop, x0:x0 + crop]
     if train and rng.random() < 0.5:            # horizontal flip (mirror the pour)
         fr = fr[:, :, ::-1]
     return np.ascontiguousarray(fr)
 
 
-@torch.no_grad()
-def encode(enc, batch_u8, device, mean, std):
-    x = torch.from_numpy(batch_u8).to(device)
-    x = x.permute(0, 4, 1, 2, 3).float().div_(255.0)
-    x = (x - mean) / std
-    with torch.autocast("cuda", dtype=torch.bfloat16):
-        return enc(x).float()                   # (B,N,1024)
+def encode(enc, batch_u8, device, mean, std, grad=False):
+    """Frozen-encoder forward. ``grad=True`` keeps the graph so gradients can flow into
+    any encoder blocks left trainable by --unfreeze_blocks (everything else still has
+    requires_grad=False, so only those blocks accumulate)."""
+    with torch.set_grad_enabled(grad):
+        x = torch.from_numpy(batch_u8).to(device)
+        x = x.permute(0, 4, 1, 2, 3).float().div_(255.0)
+        x = (x - mean) / std
+        with torch.autocast("cuda", dtype=torch.bfloat16):
+            out = enc(x)
+        return out.float()                      # (B,N,1024); .float() keeps the graph
 
 
 def batches(items, bs, shuffle, rng):
@@ -116,13 +127,15 @@ def batches(items, bs, shuffle, rng):
         yield [items[i] for i in order[s:s + bs]]
 
 
-def run_eval(enc, head, cams, wins, target, num_frames, device, mean, std, ymean, ystd, bs=16):
+def run_eval(enc, head, cams, wins, target, num_frames, device, mean, std, ymean, ystd,
+             bs=16, crop=256):
     head.eval()
     preds, ys = [], []
     rng = np.random.default_rng(0)
     with torch.no_grad():
         for batch in batches(wins, bs, False, rng):
-            fr = np.stack([sample_window(cams[w["cam"]][w["clip"]], w, num_frames, False, rng)
+            fr = np.stack([sample_window(cams[w["cam"]][w["clip"]], w, num_frames, False,
+                                         rng, crop)
                            for w in batch])
             tok = encode(enc, fr, device, mean, std)
             with torch.autocast("cuda", dtype=torch.bfloat16):
@@ -289,6 +302,30 @@ def main():
                     help="initialize the head from a trained checkpoint (staged transfer, "
                          "e.g. Sound-of-Water pretrain -> own-clips fine-tune)")
     ap.add_argument("--tag_extra", default="", help="suffix for ckpt/run names")
+    ap.add_argument("--backbone", choices=["vjepa", "dinov3"], default="vjepa",
+                    help="frozen feature extractor. dinov3 = per-frame DINOv3 ViT-L/16 "
+                         "patch grids concatenated over time (same 2048x1024 token budget "
+                         "as V-JEPA, so the head and its input length are unchanged); it "
+                         "isolates 'does the backbone need temporal attention'")
+    ap.add_argument("--unfreeze_blocks", type=int, default=0,
+                    help="unfreeze the LAST N encoder blocks and train them at "
+                         "--backbone_lr (0 = fully frozen, the project default). The "
+                         "whole project has held the backbone frozen and never tested "
+                         "this; the final blocks are the task-specific ones")
+    ap.add_argument("--backbone_lr", type=float, default=1e-5,
+                    help="LR for unfrozen encoder blocks. Much lower than the head LR: "
+                         "these are pretrained weights and 1636 windows is a small set, "
+                         "so a head-sized LR would wreck the representation")
+    ap.add_argument("--img_size", type=int, default=256,
+                    help="encoder input size. 384 needs a frame cache built at >=432 "
+                         "(clips_grid_cache.py --size 432) pointed to by "
+                         "POUR_FRAMES288_DIR; at 256 the pour stream is only a few "
+                         "pixels wide, so resolution is a plausible lever")
+    ap.add_argument("--temporal_embed", action="store_true", default=True,
+                    help="dinov3 only: stamp each frame's tokens with a sinusoidal TIME "
+                         "embedding. Without it the token set is frame-order invariant "
+                         "and the pooler cannot recover motion direction at all")
+    ap.add_argument("--no_temporal_embed", dest="temporal_embed", action="store_false")
     ap.add_argument("--device", default="cuda")
     args = ap.parse_args()
 
@@ -327,6 +364,7 @@ def main():
     wins = build_windows(cams, args.window_s, args.stride_s, args.num_frames, args.lag_s)
     dstag = "" if args.dataset == "clips" else f"sow{args.subset}_"
     tag = (f"{dstag}{args.cam if args.dataset == 'clips' else 'v'}"
+           f"{'' if args.backbone == 'vjepa' else '_' + args.backbone}"
            f"{'' if args.lag_s == 0 else f'_lag{args.lag_s:g}'}"
            f"{'' if args.loss == 'smoothl1' else '_' + args.loss}"
            f"{'' if args.warmstart else '_noWS'}{('_' + args.fold) if args.fold else ''}"
@@ -336,7 +374,31 @@ def main():
     print(f"cams {cam_list} | {len(tr)} train / {len(va)} val windows | "
           f"val trials {sorted(val_trials)}", flush=True)
 
-    enc = load_encoder(img_size=256, num_frames=args.num_frames, device=args.device)
+    if args.backbone == "dinov3":
+        import _dino_encoder
+        enc = _dino_encoder.load_encoder(img_size=256, num_frames=args.num_frames,
+                                         device=args.device,
+                                         temporal_embed=args.temporal_embed)
+        print(f"backbone: DINOv3 ViT-L/16 ({_dino_encoder.MODEL_ID}), "
+              f"every {_dino_encoder.FRAME_STRIDE}nd frame, "
+              f"temporal_embed={args.temporal_embed}")
+    else:
+        enc = load_encoder(img_size=args.img_size, num_frames=args.num_frames,
+                           device=args.device)
+    # Partial fine-tune: unfreeze the LAST n blocks. Kept in eval() mode -- a ViT has no
+    # batchnorm, so eval() only disables dropout/stochastic-depth, which is what we want
+    # on 1636 windows.
+    trainable_enc = []
+    if args.unfreeze_blocks > 0:
+        if not hasattr(enc, "blocks"):
+            raise SystemExit("--unfreeze_blocks needs an encoder exposing .blocks")
+        for blk in enc.blocks[-args.unfreeze_blocks:]:
+            for p in blk.parameters():
+                p.requires_grad_(True)
+                trainable_enc.append(p)
+        n_par = sum(p.numel() for p in trainable_enc)
+        print(f"unfroze last {args.unfreeze_blocks}/{len(enc.blocks)} encoder blocks "
+              f"({n_par/1e6:.1f}M params) at lr {args.backbone_lr:g}")
     head = build_head(1).to(args.device)
     if args.init_ckpt:
         # Staged transfer: start from a head trained on ANOTHER pouring corpus (e.g.
@@ -355,7 +417,10 @@ def main():
     ytr = np.asarray([w[args.target] for w in tr], np.float32)
     ymean, ystd = float(ytr.mean()), float(ytr.std() + 1e-6)
 
-    opt = torch.optim.AdamW(head.parameters(), lr=args.lr, weight_decay=args.weight_decay)
+    groups = [{"params": list(head.parameters()), "lr": args.lr}]
+    if trainable_enc:
+        groups.append({"params": trainable_enc, "lr": args.backbone_lr})
+    opt = torch.optim.AdamW(groups, lr=args.lr, weight_decay=args.weight_decay)
     crit = nn.MSELoss() if args.loss == "mse" else nn.SmoothL1Loss()
     rng = np.random.default_rng(0)
 
@@ -363,7 +428,13 @@ def main():
     mlflow_util.setup("pour_probe_clips_attn" if args.dataset == "clips"
                       else "pour_probe_sow_attn")
     run = mlflow.start_run(run_name=f"attn_{args.target}_{tag}")
-    mlflow.log_params({"target": args.target, "cam": args.cam, "arch": "AttentiveClassifier",
+    mlflow.log_params({"target": args.target, "cam": args.cam, "backbone": args.backbone,
+                       "temporal_embed": args.temporal_embed,
+                       "unfreeze_blocks": args.unfreeze_blocks,
+                       "backbone_lr": args.backbone_lr if args.unfreeze_blocks else "",
+                       "img_size": args.img_size,
+                       "frames_dir": str(FRAMES_DIR),
+                       "arch": "AttentiveClassifier",
                        "depth": 4, "heads": 16, "embed_dim": 1024, "warmstart_ek100": args.warmstart,
                        "lag_s": args.lag_s, "loss": args.loss,
                        "lr": args.lr, "weight_decay": args.weight_decay, "batch": args.batch,
@@ -411,9 +482,10 @@ def main():
         ep_t0 = time.time()
         head.train()
         for batch in batches(tr, args.batch, True, rng):
-            fr = np.stack([sample_window(cams[w["cam"]][w["clip"]], w, args.num_frames, True, rng)
+            fr = np.stack([sample_window(cams[w["cam"]][w["clip"]], w, args.num_frames,
+                                         True, rng, args.img_size)
                            for w in batch])
-            tok = encode(enc, fr, args.device, mean, std)
+            tok = encode(enc, fr, args.device, mean, std, grad=bool(trainable_enc))
             y = torch.tensor([(w[args.target] - ymean) / ystd for w in batch],
                              dtype=torch.float32, device=args.device).unsqueeze(1)
             opt.zero_grad()
@@ -427,7 +499,8 @@ def main():
             step += 1
         # per-epoch val (combined)
         r2, mae, pv_e, yv_e = run_eval(enc, head, cams, va, args.target, args.num_frames,
-                                       args.device, mean, std, ymean, ystd)
+                                       args.device, mean, std, ymean, ystd,
+                                       crop=args.img_size)
         mlflow.log_metric("val_r2", r2, step=step)
         mlflow.log_metric("val_mae", mae, step=step)
         # On the SoW data the plain R2 is unreliable as a SELECTION metric: absolute
@@ -473,14 +546,16 @@ def main():
     unit = ("g/s" if args.target == "flow" else "g") if args.dataset == "clips" else \
            ("mL/s" if args.target == "flow" else "mL")
     r2_comb, mae_comb, pv, yv = run_eval(enc, head, cams, va, args.target, args.num_frames,
-                                         args.device, mean, std, ymean, ystd)
+                                         args.device, mean, std, ymean, ystd,
+                                       crop=args.img_size)
     mlflow.log_metric("ckpt_val_r2", r2_comb); mlflow.log_metric("ckpt_val_mae", mae_comb)
     percam = {}
     if args.dataset == "clips":
         for c in cam_list:
             vc = [w for w in va if w["cam"] == c]
             r2c, maec, _, _ = run_eval(enc, head, cams, vc, args.target, args.num_frames,
-                                       args.device, mean, std, ymean, ystd)
+                                       args.device, mean, std, ymean, ystd,
+                                       crop=args.img_size)
             percam[c] = (r2c, maec)
             mlflow.log_metric(f"val_r2_{c}", r2c); mlflow.log_metric(f"val_mae_{c}", maec)
     else:

@@ -17,8 +17,19 @@ and the container height cancel:
                 = (pi*R^2/4) * [lambda(0) - lambda(t)]
 
 so beta and H drop out and **only the radius R is needed**. That is a strictly weaker
-requirement than their published formulation (which needs H and a per-container beta),
-and it removes two error sources — worth stating in the writeup.
+requirement than their published formulation (which needs H as well), and it removes an
+error source — worth stating in the writeup.
+
+Correction (2026-08-08): an earlier version of this note said their formulation needs a
+*per-container* beta. It does not — `shared/utils/physics.py` uses a fixed beta per
+SHAPE (0.62 cylindrical, 1.28 semi-conical). The real gap is elsewhere: they do not need
+a measured R either, because `estimate_cylinder_radius` recovers it from the audio as
+R = lambda(T)/(4*beta). **That estimator assumes l(T)=0 — the vessel is full at the end
+of the recording.** Our pours stop at an arbitrary fill, so lambda(T) reads the leftover
+air column, not the radius: over 48 pours into the SAME mug it returns R = 1.7-11.4 cm
+(within-container variance 28x the between-container variance, corr with poured mass
+-0.48). So on our data R must be supplied; on THEIR data the estimator works as
+published (measured 2.88 cm vs 2.49 cm estimated on the demo video).
 
 Correspondingly the instantaneous flow is
 
