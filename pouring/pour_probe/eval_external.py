@@ -26,11 +26,12 @@ import clips_train_attn as ca
 from _encoder import load_encoder
 from head import build_head
 from clips_cnn_baseline import FOLDS, LAG_FLOW
+from paths import CACHE_ROOT
 
 ROOT = Path(__file__).resolve().parents[2]
 EVAL_DIR = ROOT / "datasets/eval"
 VID_DIR = EVAL_DIR / "videos"
-OUT = Path("/home/casimir/.cache/pour_probe/external_preds.npz")
+OUT = (CACHE_ROOT / "external_preds.npz")
 
 WINDOW_S, STRIDE_S, NUM_FRAMES = 1.0, 0.25, 16
 CKPT = "attn_flow_both_lag0.7_fold{}_best.pt"

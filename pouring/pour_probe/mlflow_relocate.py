@@ -2,7 +2,7 @@
 """Repoint the mlflow store's artifact paths at wherever this repo now lives.
 
 Why this exists: mlflow stores artifact locations as ABSOLUTE paths. The committed
-`mlflow.db` therefore has 177 runs pointing at `/home/casimir/UNI/SS_26/idp/mlruns/...`.
+`mlflow.db` therefore has 177 runs pointing at the original workstation clone (`/home/<user>/.../idp/mlruns/...`).
 Metrics and params live in the db itself and always show up, but the UI cannot open a
 single logged artifact after the repo is cloned to a different path (a different laptop,
 a different username). This rewrites `experiments.artifact_location` and

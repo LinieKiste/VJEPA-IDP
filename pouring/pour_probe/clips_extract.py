@@ -34,11 +34,12 @@ import torch
 from tqdm import tqdm
 
 from _encoder import load_encoder
+from paths import CACHE_ROOT
 
 ROOT = Path(__file__).resolve().parents[2]
 CLIPS = ROOT / "datasets" / "pouring_processed" / "clips"
 FEATURES_DIR = Path(os.environ.get("POUR_CLIPS_FEATURES_DIR",
-                                   "/home/casimir/.cache/pour_probe/clips_feats"))
+                                   str(CACHE_ROOT / "clips_feats")))
 
 MEAN = torch.tensor([0.485, 0.456, 0.406]).view(1, 3, 1, 1, 1)
 STD = torch.tensor([0.229, 0.224, 0.225]).view(1, 3, 1, 1, 1)

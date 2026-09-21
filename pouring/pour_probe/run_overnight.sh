@@ -20,9 +20,10 @@ set -uo pipefail
 
 cd "$(dirname "$0")"
 PY=../../.venv/bin/python
-CENTER=/home/casimir/.cache/pour_probe/clips_frames288
-ROI=/home/casimir/.cache/pour_probe/clips_frames288_roi
-LOG=/home/casimir/.cache/pour_probe/overnight_logs
+CACHE=${POUR_CACHE:-$HOME/.cache/pour_probe}
+CENTER=$CACHE/clips_frames288
+ROI=$CACHE/clips_frames288_roi
+LOG=$CACHE/overnight_logs
 mkdir -p "$LOG"
 
 FOLD_A="13,21,24,8"

@@ -37,11 +37,12 @@ import numpy as np
 import pandas as pd
 
 import sow_physics as sp
+from paths import CACHE_ROOT
 
 ROOT = Path(__file__).resolve().parents[2]
 SOW = ROOT / "datasets/sound-of-water"
 CACHE = Path(os.environ.get("POUR_SOW_TARGETS_DIR",
-                            "/home/casimir/.cache/pour_probe/sow_targets"))
+                            str(CACHE_ROOT / "sow_targets")))
 SPLITS = ("train", "test_I", "test_II", "test_III")
 
 

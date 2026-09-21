@@ -36,9 +36,10 @@ from sklearn.linear_model import Ridge
 from sklearn.metrics import mean_absolute_error, r2_score
 
 import clips_train_attn as ca
+from paths import CACHE_ROOT
 
 CACHE = Path(os.environ.get("POUR_CNN_FEATS_DIR",
-                            "/home/casimir/.cache/pour_probe/clips_cnn_feats/resnet50"))
+                            str(CACHE_ROOT / "clips_cnn_feats/resnet50")))
 IMEAN = torch.tensor([0.485, 0.456, 0.406]).view(1, 3, 1, 1)
 ISTD = torch.tensor([0.229, 0.224, 0.225]).view(1, 3, 1, 1)
 

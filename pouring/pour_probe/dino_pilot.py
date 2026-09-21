@@ -23,8 +23,9 @@ from pathlib import Path
 
 import numpy as np
 import torch
+from paths import CACHE_ROOT
 
-CACHE = Path("/home/casimir/.cache/pour_probe/dino_frame_feats")
+CACHE = (CACHE_ROOT / "dino_frame_feats")
 
 
 def extract(roi: bool, device: str = "cuda", batch: int = 48):
@@ -35,7 +36,7 @@ def extract(roi: bool, device: str = "cuda", batch: int = 48):
     compare temporal constructions cheaply.
     """
     if roi:
-        os.environ["POUR_FRAMES288_DIR"] = "/home/casimir/.cache/pour_probe/clips_frames288_roi"
+        os.environ["POUR_FRAMES288_DIR"] = str(CACHE_ROOT / "clips_frames288_roi")
     import clips_train_attn as ca            # reads FRAMES_DIR at import time
     import _dino_encoder
 
