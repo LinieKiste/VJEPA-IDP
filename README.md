@@ -1,38 +1,79 @@
-# IDP — V-JEPA 2 for Procedural-Error Detection in Video (SS26)
+# IDP SS26 — Pouring flow estimation from frozen V-JEPA 2 features
 
-Interdisciplinary project: systematic evaluation of frozen **V-JEPA 2** video
-representations for **anomaly / procedural-error detection**, centered on the
-[EgoPER](https://github.com/robert80203/EgoPER_official) dataset (egocentric cooking
-videos with subtle procedural errors).
+Interdisciplinary project (TUM, summer semester 2026). **Question:** can a *frozen* video
+foundation model (V-JEPA 2 ViT-L) read how fast liquid is being poured, just from a
+third-person video?
 
-**Headline result:** frozen V-JEPA 2 ViT-L features linearly separate correct vs.
-erroneous procedure windows on EgoPER Coffee at window ROC-AUC ≈ 0.78 (SlowFast-pooled
-view, L2-regularized logistic probe; mean-pool view 0.75). See `egoper_probe/README.md`.
+**Answer (own lab data, 121 pours, trials held out):** yes, for the *instantaneous flow
+rate*. A light attentive probe on frozen V-JEPA 2 features reaches **R² ≈ 0.81 (MAE 8.5 g/s)**
+and beats every non-V-JEPA baseline: ImageNet and Kinetics CNNs, a DINOv3 image model,
+the *Sound of Water* audio model, and time-only priors. Integrating the predicted flow gives
+each pour's total mass: **74% of pours within 25 g**. The absolute fill *volume*, by
+contrast, is dominated by elapsed time, and the model does not transfer to out-of-domain
+scenes; see the results notes.
 
-## Layout
-- **`egoper_probe/`** — the centerpiece: sliding-window V-JEPA 2 feature extraction +
-  linear/one-class probes for window-level error detection, tracked with mlflow.
-- **`egoper_vqa/`** — baseline/contrast: zero-shot video-QA on EgoPER with Qwen2.5-VL
-  (4-bit), incl. a training-free SlowFast-LLaVA-style two-stream scheme and task-graph
-  procedure grounding.
-- **`video_qa/`** — replication of V-JEPA 2 (arXiv 2506.09985) Appendix E: LLaVA-style
-  visual instruction tuning aligning the frozen encoder with Qwen2.5-7B via QLoRA.
-- **`vjepa2/`** — git submodule: [facebookresearch/vjepa2](https://github.com/facebookresearch/vjepa2)
-  (model code; checkpoints not included).
+The project started on video **anomaly detection** (EgoPER, eXprt tea dataset) and pivoted to
+pouring in July 2026. That earlier work is kept in the repo as background.
+
+## Where things are
+
+| Path | Status | What it is |
+|---|---|---|
+| **`pouring/`** | **current** | The deliverable. `clip_split/` turns raw lab recordings into labelled pour clips; `pour_probe/` trains and evaluates the probes. See [`pouring/README.md`](pouring/README.md). |
+| **`presentation_final/`** | **current** | The final talk (Slidev, TUM theme, German). See its README. |
+| `mlflow_export/` | results | Every logged run (177) as CSV: `runs.csv`, `params.csv`, `metrics.csv`. |
+| `mlruns/` | results | Artifacts logged to mlflow (figures, small files). |
+| `presentation/` | background | Earlier, longer analysis deck (English, ~47 slides) with generated figures. It builds on its own from `presentation/data/`. |
+| `egoper_probe/` | background | Frozen V-JEPA 2 probe for procedural-error detection on EgoPER (window ROC-AUC ≈ 0.75). |
+| `exprt_probe/` | background | Anomaly and action probes on the eXprt tea-making dataset. |
+| `egoper_vqa/` | background | Zero-shot video-QA baseline (Qwen2.5-VL) and a zero-shot EK100 action-head check. |
+| `video_qa/` | background / **shared** | Replication of V-JEPA 2 Appendix E (encoder plus LLM). **`video_qa/model.py::build_encoder` is the encoder loader every other folder uses.** |
+| `vjepa2/` | submodule | [facebookresearch/vjepa2](https://github.com/facebookresearch/vjepa2) @ `204698b`: model code only. |
+| `pouring/SimLiquid/` | submodule | [SimLiquid](https://github.com/Jiaviz/SimLiquid) BlenderProc renderer. It was set up for simulation pretraining but not used in the final results. |
+| `OCR_Scale_REader/` | submodule (**private**) | The supervisor's scale-OCR repo. `clip_split/run_ocr.py` imports its segment geometry; our own `lcd_ocr.py` replaced its OCR backends. You need access to `Paetriq/OCR_Scale_REader` to clone it. |
+| `CLAUDE.md` | notes | The detailed lab notebook: every result, number, caveat and gotcha. Read this for the *why* behind any number. |
+| `notes.md` | notes | Early (June) meeting notes from the EgoPER phase. |
+
+Not in git: `datasets/`, `checkpoints/`, `mlflow.db`, and all feature caches (see Setup).
 
 ## Setup
+
 ```bash
-git clone --recurse-submodules <this-repo>
-uv sync                                   # Python 3.10, torch cu132, see pyproject.toml
-# place V-JEPA 2 ViT-L checkpoint at checkpoints/vitl.pt
-# place EgoPER at datasets/egoper/ (see CLAUDE.md for expected layout)
+git clone --recurse-submodules <this-repo>     # OCR_Scale_REader needs repo access (SSH)
+uv sync                                        # Python 3.10, torch cu132 (Blackwell GPU)
 ```
 
-Run the probe pipeline:
+- **Checkpoints** → `checkpoints/vitl.pt` (V-JEPA 2 ViT-L, `target_encoder` key) and,
+  optionally, `checkpoints/ek100-vitl-256.pt` (EK100 attentive probe, used as a warm start).
+  Both are from the V-JEPA 2 release.
+- **Data.** The curated pour clips (121 clips, CAM2 and CAM3, plus a per-clip GT weight curve,
+  410 MB) are on the TUM NAS under `Datenverarbeitung/pouring_clips/`. Place them at
+  `datasets/pouring_processed/clips/`. Raw recordings are in `Dateneingang/` (read-only).
+- **Caches.** Frame and feature caches (tens of GB) go to `$POUR_CACHE`, which defaults to
+  `~/.cache/pour_probe`. Put it on an SSD.
+- **mlflow.** The run database is not in git: GitHub's secret scanner rejects the sqlite file
+  (it flags a false-positive "Twilio SID"). Read results from `mlflow_export/*.csv`. If you
+  have a copy of `mlflow.db`, run `pouring/pour_probe/mlflow_relocate.py` and then
+  `mlflow ui --backend-store-uri sqlite:///$PWD/mlflow.db`.
+
+Tested on a single RTX 5060 Ti 16 GB. Run all scripts from the repo root.
+
+## Reproducing the headline numbers
+
 ```bash
-.venv/bin/python egoper_probe/extract.py --task coffee   # cache features (GPU, ~50 min)
-.venv/bin/python egoper_probe/probe.py --task coffee --view feats_sf --C 0.001
-.venv/bin/mlflow ui                                      # inspect runs
+P=.venv/bin/python; D=pouring/pour_probe
+$P $D/clips_extract.py                         # mean-pool features, both cams (GPU)
+$P $D/clips_eval_protocol.py --cam both        # ridge + controls, skill scores (CPU, ~1 min)
+$P $D/clips_grid_cache.py --cam CAM2           # 288-px frame cache for the attentive probe
+$P $D/clips_grid_cache.py --cam CAM3
+# attentive flow probe, one run per trial fold (GPU, ~80 min each). The folds are
+# defined in clips_cnn_baseline.FOLDS: A=8,13,21,24  B=7,9,11,12  C=5,15,16,25,26  D=17,18,20,22,27
+$P $D/clips_train_attn.py --target flow --cam both --lag_s 0.7 \
+    --val_trials 8,13,21,24 --fold foldA --minutes 60        # …repeat for B, C, D
+$P $D/clips_headline_metrics.py                # 4-fold attentive metrics in g/s and g
 ```
 
-Hardware target: single RTX 5060 Ti (16 GB, Blackwell/sm_120).
+`clips_headline_metrics.py` also expects the four volume checkpoints (`--target volume --cam
+both --fold volA …`; see `run_overnight.sh`, study 2).
+
+`pouring/pour_probe/README.md` has the full script map.

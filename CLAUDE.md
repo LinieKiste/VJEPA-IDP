@@ -30,6 +30,16 @@ bar — a working, honest result is.
   5.x. Old-torch stacks (LLaVA-NeXT pins 2.1.2) have **no Blackwell kernels → can't use the
   GPU at all** — this is why several off-the-shelf VLMs were ruled out.
 - **One `.venv` per project** (user preference — no per-experiment conda envs).
+- **Handover layout (2026-09-20 cleanup, branch `cleanup/handover`).** The human-facing docs are
+  `README.md` → `pouring/README.md` → `pouring/{clip_split,pour_probe}/README.md` (script
+  map by role). Keep them in sync when adding scripts. Old anomaly dirs stay in place and are
+  labelled *background*. **All cache paths go through `pour_probe/paths.py::CACHE_ROOT`**
+  (`$POUR_CACHE`, default `~/.cache/pour_probe`); never hardcode `/home/casimir` again.
+  Removed (still in git history): the UWLPD-era `dataset/extract/pool/train/attn_map.py` +
+  `mapping.json` + `qual/`, `mlflow_migrate.py`, the pilot `events_*.csv`, the scratch
+  notebooks, and the pptx template. The deck's demo mp4s are now tracked (gitignore exception).
+  `OCR_Scale_REader` is a PRIVATE repo, and `run_ocr.py` imports from it. HTTPS clone fails
+  without auth, so the SSH URL stays. `pyproject` lacks `opencv-python` (cv2).
 - **Storage:** large datasets on the **Storage HDD** (1.8 TB NTFS, `/mnt/storage`, fstab
   `nofail`). `datasets/` holds symlinks into it. If symlinks look broken the drive isn't
   mounted: `sudo -A mount /mnt/storage` (always `sudo -A`; plain sudo hangs).

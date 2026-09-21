@@ -1,7 +1,7 @@
 [project]
 name = "idp"
 version = "0.1.0"
-description = "Add your description here"
+description = "Pouring flow-rate estimation from frozen V-JEPA 2 video features (TUM IDP SS26)"
 readme = "README.md"
 requires-python = ">=3.10.0"
 dependencies = [
