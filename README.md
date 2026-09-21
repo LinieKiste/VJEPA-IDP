@@ -1,16 +1,17 @@
-# IDP SS26 — Pouring flow estimation from frozen V-JEPA 2 features
+# IDP SS26: Exploration von JEPA-Architekturen zur Anomalidetektion in Alltagsaktivitäten
 
-Interdisciplinary project (TUM, summer semester 2026). **Question:** can a *frozen* video
-foundation model (V-JEPA 2 ViT-L) read how fast liquid is being poured, just from a
-third-person video?
+Sammlung verschiedener Experimente mit V-JEPA.
+Das Projekt besteht aus 2 Hauptphasen: Anomalidetektion mit V-JEPA und Schüttvolumenschätzung.
 
-**Answer (own lab data, 121 pours, trials held out):** yes, for the *instantaneous flow
-rate*. A light attentive probe on frozen V-JEPA 2 features reaches **R² ≈ 0.81 (MAE 8.5 g/s)**
-and beats every non-V-JEPA baseline: ImageNet and Kinetics CNNs, a DINOv3 image model,
-the *Sound of Water* audio model, and time-only priors. Integrating the predicted flow gives
-each pour's total mass: **74% of pours within 25 g**. The absolute fill *volume*, by
-contrast, is dominated by elapsed time, and the model does not transfer to out-of-domain
-scenes; see the results notes.
+Zur Anomaliedetektion gehören:
+`egoper_probe/`
+`egoper_vqa/`
+`exprt_probe/`
+`video_qa/`
+
+Code zur Schüttvolumenschätzung ist in `pouring/`.
+
+`mlflow.db` enthält [mlflow](https://mlflow.org/)-kompatible Daten zu Training-runs und anderen experimenten.
 
 The project started on video **anomaly detection** (EgoPER, eXprt tea dataset) and pivoted to
 pouring in July 2026. That earlier work is kept in the repo as background.
@@ -29,7 +30,6 @@ pouring in July 2026. That earlier work is kept in the repo as background.
 | `egoper_vqa/` | background | Zero-shot video-QA baseline (Qwen2.5-VL) and a zero-shot EK100 action-head check. |
 | `video_qa/` | background / **shared** | Replication of V-JEPA 2 Appendix E (encoder plus LLM). **`video_qa/model.py::build_encoder` is the encoder loader every other folder uses.** |
 | `vjepa2/` | submodule | [facebookresearch/vjepa2](https://github.com/facebookresearch/vjepa2) @ `204698b`: model code only. |
-| `pouring/SimLiquid/` | submodule | [SimLiquid](https://github.com/Jiaviz/SimLiquid) BlenderProc renderer. It was set up for simulation pretraining but not used in the final results. |
 | `OCR_Scale_REader/` | submodule (**private**) | The supervisor's scale-OCR repo. `clip_split/run_ocr.py` imports its segment geometry; our own `lcd_ocr.py` replaced its OCR backends. You need access to `Paetriq/OCR_Scale_REader` to clone it. |
 | `CLAUDE.md` | notes | The detailed lab notebook: every result, number, caveat and gotcha. Read this for the *why* behind any number. |
 | `notes.md` | notes | Early (June) meeting notes from the EgoPER phase. |

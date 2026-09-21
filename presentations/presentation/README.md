@@ -78,7 +78,7 @@ All 177 runs are tracked as CSV in `../mlflow_export/` — `runs.csv`, `metrics.
 value per run × metric), `params.csv`. Readable without mlflow installed, and diffable.
 The experiments behind the deck are `pour_probe_clips_attn` (29, the attentive probes),
 `pour_probe_baselines` (40), `pour_probe_clips` (7), and `pour_probe_sow_attn` (10, Sound
-of Water). Logged artifacts are in `../mlruns/`.
+of Water). Run artifacts are not kept on disk; the db is local-only.
 
 ```bash
 # e.g. every held-out R² for the attentive probes

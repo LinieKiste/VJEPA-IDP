@@ -62,8 +62,8 @@ bar — a working, honest result is.
   `run_uuid` that happens to follow the bytes `AC` in a sqlite page as a **Twilio Account
   SID** and rejects the push (trips on `attn_flow_CAM2_roi`, `multiclass_seed1_fold4`).
   False positive, but blocking. So the db is gitignored and the run record travels as CSV in
-  **`mlflow_export/`** (`pour_probe/mlflow_export.py`, 177 runs / 240 KB); `mlruns/` (logged
-  artifacts, 532 KB) IS tracked. Copy the db by hand if you need the UI elsewhere, then run
+  **`mlflow_export/`** (`pour_probe/mlflow_export.py`, 177 runs / 240 KB). Copy the db by hand
+  if you need the UI elsewhere, then run
   **`pour_probe/mlflow_relocate.py`** — artifact paths are stored ABSOLUTE, so a clone at a
   different path shows metrics but opens no artifacts.
 - **Workflow discipline:** pilot-first, build small QC utilities, get user sign-off at
