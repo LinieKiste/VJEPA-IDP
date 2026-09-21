@@ -39,7 +39,9 @@ bar — a working, honest result is.
   `mapping.json` + `qual/`, `mlflow_migrate.py`, the pilot `events_*.csv`, the scratch
   notebooks, and the pptx template. The deck's demo mp4s are now tracked (gitignore exception).
   `OCR_Scale_REader` is a PRIVATE repo, and `run_ocr.py` imports from it. HTTPS clone fails
-  without auth, so the SSH URL stays. `pyproject` lacks `opencv-python` (cv2).
+  without auth, so the SSH URL stays. `data/smoke.json` removed (video_qa smoke test is
+  local-only). Direct deps (opencv, numpy, scipy, sklearn, pandas, tqdm, pillow) added to
+  `pyproject` + `uv.lock` 2026-09-20 WITHOUT an install test (no `.venv` on the laptop then).
 - **Storage:** large datasets on the **Storage HDD** (1.8 TB NTFS, `/mnt/storage`, fstab
   `nofail`). `datasets/` holds symlinks into it. If symlinks look broken the drive isn't
   mounted: `sudo -A mount /mnt/storage` (always `sudo -A`; plain sudo hangs).
