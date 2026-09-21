@@ -59,30 +59,29 @@ description: Answer questions about the IDP SS26 project history and help build 
 ## Where the detail lives
 
 - `CLAUDE.md` — current project summary (post-Jul-20, the centerpiece + rigor +
-  ablations). Read this first for any stage ≥ 6.
-- `CLAUDE.md.bak` — full pre-Jul-20 history (stages 1–5, day-by-day).
+  ablations). Read this first for any stage ≥ 6. Pre-Jul-20 history is in git
+  history / on a backup branch.
 - `git log --pretty=format:"%ad|%s" --date=short` — coarse commit timeline.
 - mlflow (10 experiments, creation dates): `egoper_probe_coffee` (Jun 10),
   `exprt_anomaly` (Jun 18), `exprt_action_probe` (Jun 26), `pour_probe` (Jul 5),
   `pour_probe_clips` (Jul 17), `pour_probe_clips_attn` (Jul 17),
   `pour_probe_sow_attn` (Jul 19), `pour_probe_baselines` (Jul 19),
   `pour_probe_dino_pilot` (Aug 7). UI: `mlflow ui --backend-store-uri
-  sqlite:////home/casimir/UNI/SS_26/idp/mlflow.db`. Run record as CSV in
-  `mlflow_export/` (db is gitignored — GitHub secret scanner false positive).
-- `presentation/README.md` — interim deck operational guide (build, page map,
+  sqlite:////home/casimir/UNI/SS_26/idp/mlflow.db` (the db is tracked in git).
+- `presentations/presentation/README.md` — interim deck operational guide (build, page map,
   figure regeneration, experiment record).
-- `presentation_final/README.md` — final TUM-themed deck: how the theme was
+- `presentations/presentation_final/README.md` — final TUM-themed deck: how the theme was
   derived from the pptx, layouts table, gotchas.
 
 ## Decks
 
-- **`presentation/`** (interim): Slidev, `slides.md` = headmatter + `src:` imports
+- **`presentations/presentation/`** (interim): Slidev, `slides.md` = headmatter + `src:` imports
   of `pages/*.md` (00-arc, 10-background, 20-data, 30-method, 40-results,
   50-ablations, 60-crossmodal, 70-outlook). 19 figures via `make_figs.py`
   (numbers transcribed by hand from mlflow — single place to fix a number).
   `data/` mirrors non-git figure inputs; assets relative, NOT in `public/`.
   `colorSchema: light` forced. Build: `npx slidev` / `npx slidev build`.
-- **`presentation_final/`** (final, TUM theme): local theme `theme-tum/`
+- **`presentations/presentation_final/`** (final, TUM theme): local theme `theme-tum/`
   reproducing `HLU_Presentation_Template_Oct_2022_Modified_by_Tian.pptx`.
   `canvasWidth: 720` → 1 CSS px = 1 PowerPoint pt. Layouts: cover, cover-photo,
   default (+`lead:`), two-cols (`::right::`), content-image (`band:`), image

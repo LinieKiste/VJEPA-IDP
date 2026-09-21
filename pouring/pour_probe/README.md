@@ -63,8 +63,8 @@ root. Every script's docstring gives its purpose, usage and the result it produc
 | `eval_external.py` (+`_figs`) | Runs the probe on 9 out-of-domain iPhone pours (`datasets/eval/`) |
 | `eval_videos.py` → `eval_videos_render.py` | Side-by-side demo videos for the talk (on-screen text in German on purpose) |
 
-**mlflow utilities:** `mlflow_export.py` (db → `mlflow_export/*.csv`), `mlflow_relocate.py`
-(repoint artifact paths after moving the db).
+**mlflow utilities:** `mlflow_util.py` (pinned store; every script routes through
+`mlflow_util.setup()`).
 
 `RELATED_WORK.md` has literature notes. The numbers and their caveats are all in the root
 `CLAUDE.md`.

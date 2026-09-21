@@ -3,7 +3,8 @@ V-JEPA 2 flow probe, against the scale.
 
     ../.venv/bin/python figs_src/bland_altman.py   ->  public/bland_altman.png
 
-Inputs are the tracked bundle under ../presentation/data/ (the same
+Inputs are the tracked bundle under ../presentation/data/ (one level up: the
+interim deck's `data/`; the same
 `headline_preds.npz` the interim deck's figures read), so this regenerates from a
 bare clone.
 

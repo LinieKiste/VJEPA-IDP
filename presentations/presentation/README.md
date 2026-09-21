@@ -74,29 +74,17 @@ Verified: with `datasets/` and `~/.cache` both absent, all 19 figures regenerate
 
 ## Experiment record
 
-All 177 runs are tracked as CSV in `../mlflow_export/` — `runs.csv`, `metrics.csv` (final
-value per run × metric), `params.csv`. Readable without mlflow installed, and diffable.
-The experiments behind the deck are `pour_probe_clips_attn` (29, the attentive probes),
-`pour_probe_baselines` (40), `pour_probe_clips` (7), and `pour_probe_sow_attn` (10, Sound
-of Water). Run artifacts are not kept on disk; the db is local-only.
+All runs (177) live in the tracked **`mlflow.db`** at the repo root — no CSV export, no
+mlflow install needed to diff it, `sqlite3` to query. The experiments behind the deck are
+`pour_probe_clips_attn` (29, the attentive probes), `pour_probe_baselines` (40),
+`pour_probe_clips` (7), and `pour_probe_sow_attn` (10, Sound of Water).
 
 ```bash
-# e.g. every held-out R² for the attentive probes
-grep pour_probe_clips_attn ../mlflow_export/metrics.csv | grep best_val_r2
-```
-
-**The binary `mlflow.db` is deliberately NOT tracked.** GitHub's secret scanner rejects it:
-a 32-hex mlflow `run_uuid` that happens to sit after the bytes `AC` in a sqlite page is
-byte-identical to a Twilio Account SID. Two runs trip it (`attn_flow_CAM2_roi`,
-`multiclass_seed1_fold4`) — a false positive, but it blocks the push. Copy the db across
-by hand if you want the mlflow UI, then:
-
-```bash
-python ../pouring/pour_probe/mlflow_relocate.py    # fix absolute artifact paths
 mlflow ui --backend-store-uri sqlite:///"$(cd .. && pwd)"/mlflow.db
-python ../pouring/pour_probe/mlflow_export.py      # refresh the CSVs after new runs
+# or without mlflow:
+sqlite3 ../mlflow.db "select run_name, value from latest_metrics where key='best_val_r2'"
 ```
 
 `summary.md` is the prose companion — the full result tables and the reasoning behind
 them. `../CLAUDE.md` is the project-wide summary, with the pre-2026-07-20 history in
-`../CLAUDE.md.bak`.
+git history / on a backup branch.

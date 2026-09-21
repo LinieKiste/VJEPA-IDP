@@ -4,8 +4,8 @@
 Update this file whenever you learn something durable about the project. Keep it a
 *coherent summary*, not a lab notebook: record decisions, results, and gotchas that stay
 true — prune dead-end debugging narratives once they're resolved. Use the Misc section for
-things without a home. The full pre-2026-07-20 blow-by-blow history is preserved in
-`CLAUDE.md.bak`.
+things without a home. The full pre-2026-07-20 blow-by-blow history lives in the git
+history and on a backup branch.
 
 ## Notion page
 Canonical project page: https://app.notion.com/p/34830491519b800eb334c130d1478d73
@@ -56,16 +56,10 @@ bar — a working, honest result is.
   (absolute path — sqlite's default is CWD-relative and spawned a stray second store once).
   All scripts route through `mlflow_util.setup()`. Launch UI with
   `mlflow ui --backend-store-uri sqlite:////home/casimir/UNI/SS_26/idp/mlflow.db`.
-  The stray `pouring/pour_probe/mlflow.db` still exists but is **strictly redundant**
-  (verified 2026-08-03: same 40 baselines run names, canonical is a superset) — ignore it.
-- **⚠ `mlflow.db` CANNOT BE PUSHED TO GITHUB.** Its secret scanner reads a 32-hex mlflow
-  `run_uuid` that happens to follow the bytes `AC` in a sqlite page as a **Twilio Account
-  SID** and rejects the push (trips on `attn_flow_CAM2_roi`, `multiclass_seed1_fold4`).
-  False positive, but blocking. So the db is gitignored and the run record travels as CSV in
-  **`mlflow_export/`** (`pour_probe/mlflow_export.py`, 177 runs / 240 KB). Copy the db by hand
-  if you need the UI elsewhere, then run
-  **`pour_probe/mlflow_relocate.py`** — artifact paths are stored ABSOLUTE, so a clone at a
-  different path shows metrics but opens no artifacts.
+  **The db IS tracked in git** (pushed via the push-protection "false positive" bypass —
+  GitHub's secret scanner flags a 32-hex run_uuid after the bytes `AC` as a Twilio SID).
+  Artifact paths in the db are ABSOLUTE to this machine, so a clone elsewhere shows metrics
+  but has no artifacts (`mlruns/` was removed in the handover cleanup).
 - **Workflow discipline:** pilot-first, build small QC utilities, get user sign-off at
   "gates" before any compute-heavy batch. Keep datasets pristine — extract writable working
   copies, never chmod/modify originals.
@@ -408,7 +402,7 @@ Outputs in `datasets/eval/demo_videos/`; predictions cached to
   SoW's method and mixing it in invited exactly that misreading. `fit_sow_ridge()` is skipped
   entirely when no source asks for it.
 
-**THREE DEMO SLIDES AT THE END OF `presentation_final/slides.md` (2026-08-09).** Videos copied
+**THREE DEMO SLIDES AT THE END OF `presentations/presentation_final/slides.md` (2026-08-09).** Videos copied
 into `public/` as `demo_eigen_schnell.mp4` (clip 0016, in-domain, works), `demo_extern_langsam.mp4`
 (IMG_0868, the trickle failure) and `demo_sow_vergleich.mp4` (the SoW comparison) — the arc is
 *works → fails out of domain → fair fight against audio*.
@@ -857,74 +851,15 @@ Custom LLaVA-style loop aligning the frozen V-JEPA 2 encoder with Qwen2.5-7B (QL
 video QA; 3-stage visual instruction tuning. **This dir is the source of the shared
 `build_encoder`.** Deviations for 16 GB: QLoRA, small public datasets, 256px/8 frames.
 
-## Presentation (`presentation/`)
-Slidev deck, **split by concern**: `slides.md` is only headmatter + a title slide + `src:`
-imports of `pages/*.md` (`00-arc`, `10-background`, `20-data`, `30-method`, `40-results`,
-`50-ablations`, `60-crossmodal`, `70-outlook`). Edit one page file per topic; nothing else
-needs touching. ~47 slides as of 2026-08-03. **`presentation/README.md` is the operational
-guide** (build, page map, figure regeneration, run record) — read it first.
-- **The deck builds from a BARE CLONE — keep it that way** (verified 2026-08-03 by cloning
-  from GitHub with `datasets/` and `~/.cache` both absent: all 19 figures regenerate
-  **byte-identical**, `slidev build` clean, 28 images bundled, no broken refs).
-  `presentation/data/` (4.4 MB) mirrors the few non-git inputs the figures touch:
-  `headline_preds.npz` (was a hardcoded `/home/casimir/.cache` path), `clips_manifest.csv`,
-  three extracted video frames (`fig_inputs`, `fig_views_example` — substitutes for the
-  410 MB clip set), and the 121 GT clip curves. `make_figs.py::data_path()` prefers the
-  original and falls back to the bundle, so nothing changes on the workstation.
-  **If you add a figure that reads from `datasets/` or a cache, add its input to `data/`.**
-- **Assets are relative, NOT in `public/`.** Slidev/Vite's slide-import-guard rejects
-  `/foo.png` absolute paths inside imported page files (`resolves outside server.fs.allow`),
-  so pages reference `../figs/*.png` (generated) and `../assets/*.png` (copied QC figures).
-- `make_figs.py` regenerates every summary chart into `figs/` AND syncs/crops the experiment
-  QC pngs into `assets/` (incl. cropping the 8-row ROI QC sheet to 3 rows). Numbers in it are
-  transcribed from mlflow + the analyses that were never logged as runs (lag sweep,
-  calibration, oracle-container) — it is the single place to fix a number.
-  The QC *sources* under `pouring/` are gitignored (`qc_*.png`), so the **copies in
-  `presentation/assets/` are the tracked ones** (`.gitignore` carries an explicit
-  `!presentation/assets/qc_*.png` exception); `sync_assets()` no-ops when sources are absent.
-- `colorSchema: light` is forced in the headmatter; the matplotlib figures are white-background
-  and look broken on slidev's default dark scheme.
-- Build/preview: `npx slidev` (dev) or `npx slidev build`. No playwright installed, so
-  `slidev export` fails; to screenshot, build then serve the dist through an SPA-fallback
-  static server and drive `/usr/bin/chromium --headless --screenshot`.
+## Presentations (both decks now under `presentations/`)
 
-## Final deck (`presentation_final/`)
-The **talk deck** (14.08.2026), on a local `theme-tum` Slidev theme reproducing the TUM
-pptx template pixel-for-pixel. Everything lives in one `slides.md` (`pages/` is empty).
-`presentation_final/README.md` is the authority — how the theme was derived from the OOXML,
-the layout table, and the gotchas.
-- **Architecture figures are generated with PlotNeuralNet** (vendored MIT, `figs_src/`):
-  `../.venv/bin/python figs_src/attentive_probe.py` → `public/attentive_probe.png`.
-  **No TeX is installed system-wide** — the script finds `tectonic` (or `pdflatex`) on PATH;
-  a standalone tectonic binary works fine, `pdftoppm` does the raster at 300 dpi.
-  PlotNeuralNet quirks that cost time: `to_Conv(width=...)` needs `"{4,4,4}"` (braces, or
-  pgfkeys reads the entries as keys), `n_filer` needs one entry PER concatenated box, and
-  `to_input`'s node has no `-east` anchor (draw from a plain coordinate).
-- **Citations: `bib.ts` + `<Cite>` / `<CiteFooter>` / `<References>`** (`components/`,
-  added 2026-08-13). One entry per source in `bib.ts`; the number IS the entry's position
-  there, so markers and the "Quellen" slide can't drift. `<Cite>` registers into
-  `cite-registry.ts` keyed by page, `<CiteFooter>` prints that page's sources above the
-  footer, `<References cols="2"/>` renders the full list. Unknown id → red `[?]`, never a
-  build failure. Details in `presentation_final/README.md § Citations`. Metadata filled from
-  **Zotero** (`~/Zotero/zotero.sqlite` — copy it first, the live db is locked while Zotero
-  runs; items + `itemData`/`itemCreators` joins give authors/venue/DOI). **Not in the library
-  and therefore unverified: LeCun 2022 JEPA, DINOv3, Grounding DINO; and Zotero holds only
-  title+authors for V-JEPA 1 (Bardes) and EgoPER (Lee).**
-- **Diagrams go in `layout: figure`, photos in `layout: image`** (figure added 2026-08-13,
-  `theme-tum/layouts/figure.vue`). The pptx picture boxes start at 34.4 %/23.8 % and run to
-  the slide edge, so a tall figure sits too low with its bottom labels under the footer.
-  `figure` spans from the head text to 91.11 % and letterboxes — write a bare `<img>`, no
-  wrapper div, no inline sizing. Its top edge is MEASURED from the rendered title/subtitle
-  (a long subtitle wraps and overruns its 6.25 % box). Used by the V-JEPA, attentive-probe
-  and Bland-Altman slides.
-- **A wrapping title overlaps the next block** — every placeholder is pinned by a pptx
-  percentage, so a two-line title grows down into whatever follows. Fixed 2026-08-13 for
-  `cover`/`cover-photo`/`section` (title + info now flow inside one `.tum-cover-head` box)
-  and for `figure` (measures the head text). **`default`/`two-cols`/`content-image`/`image`
-  are still pinned** — a title long enough to wrap will collide with the subtitle there.
-  Still true for hand-placed HTML: keep inline HTML on ONE line; a multi-line `<img …>`
-  loses its attributes to the markdown parser (the `style` silently vanishes and the image
-  overflows/clips).
+- **`presentations/presentation/`** — interim English deck (~47 slides), `pages/` split by
+  concern, 19 figures via `make_figs.py` (hand-transcribed numbers — the single place to fix
+  one). Builds from a bare clone; `data/` (4.4 MB) mirrors the non-git figure inputs.
+  **Its README is the operational guide.**
+- **`presentations/presentation_final/`** — the final talk deck (14.08.2026), local
+  `theme-tum` Slidev theme reproducing the TUM pptx template. **Its README is the
+  authority** on the theme, layouts, citations and gotchas.
 
 ## Misc
 - (Add homeless notes here.)

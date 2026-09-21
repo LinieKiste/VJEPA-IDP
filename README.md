@@ -32,7 +32,6 @@ pouring in July 2026. That earlier work is kept in the repo as background.
 | `vjepa2/` | submodule | [facebookresearch/vjepa2](https://github.com/facebookresearch/vjepa2) @ `204698b`: model code only. |
 | `OCR_Scale_REader/` | submodule (**private**) | The supervisor's scale-OCR repo. `clip_split/run_ocr.py` imports its segment geometry; our own `lcd_ocr.py` replaced its OCR backends. You need access to `Paetriq/OCR_Scale_REader` to clone it. |
 | `CLAUDE.md` | notes | The detailed lab notebook: every result, number, caveat and gotcha. Read this for the *why* behind any number. |
-| `notes.md` | notes | Early (June) meeting notes from the EgoPER phase. |
 
 Not in git: `datasets/`, `checkpoints/`, `mlflow.db`, and all feature caches (see Setup).
 

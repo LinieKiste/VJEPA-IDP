@@ -9,7 +9,7 @@ raw GoPro trials (NAS: Dateneingang/)
 datasets/pouring_processed/clips/{CAM2,CAM3,csv}/NNNN.*   (121 pours; NAS: Datenverarbeitung/pouring_clips/)
    │  pour_probe/   cache frames/features → train probes → evaluate → figures and demo videos
    ▼
-results in mlflow (mlflow_export/*.csv) + figures used by the decks
+results in mlflow (the tracked `mlflow.db`) + figures used by the decks
 ```
 
 | Folder | Contents |
