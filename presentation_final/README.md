@@ -1,7 +1,7 @@
 # IDP final presentation
 
 Slidev deck for the SS26 IDP final talk, on a local Slidev theme that reproduces
-`HLU_Presentation_Template_Oct_2022_Modified_by_Tian.pptx` (the TUM corporate
+`HLU_Presentation_Template_Oct_2022_Modified_by_Tian.pptx` (not included in this repo; the TUM corporate
 design, chair variant).
 
 ```bash
