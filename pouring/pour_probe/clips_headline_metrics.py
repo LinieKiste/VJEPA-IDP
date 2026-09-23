@@ -32,8 +32,9 @@ from head import build_head
 from clips_cnn_baseline import FOLDS, LAG_FLOW
 from clips_eval_protocol import (bland_altman, tolerance_table, totals_from_flow,
                                  unit_metrics)
+from paths import CACHE_ROOT
 
-OUT = Path("/home/casimir/.cache/pour_probe/headline_preds.npz")
+OUT = (CACHE_ROOT / "headline_preds.npz")
 CKPT = {"flow": "attn_flow_both_lag0.7_fold{}_best.pt",
         "volume": "attn_volume_both_vol{}_best.pt"}
 

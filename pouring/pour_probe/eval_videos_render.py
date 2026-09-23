@@ -54,6 +54,7 @@ def decode_display(path, short_side=DISPLAY_SHORT_SIDE):
 
 
 from eval_videos import cumulative          # noqa: E402  (shared integration convention)
+from paths import CACHE_ROOT
 
 
 def render_one(kind, key, cam, models, blurb, d, video_path, out_path):
@@ -212,7 +213,7 @@ def sow_frames(item_id):
     """Decode the cached 288 px container crop -- exactly the pixels the probe sees,
     so no crop box has to be reconstructed in the original video's coordinates."""
     import cv2
-    a = np.load(Path("/home/casimir/.cache/pour_probe/sow_frames288") / f"{item_id}.npz",
+    a = np.load((CACHE_ROOT / "sow_frames288") / f"{item_id}.npz",
                 allow_pickle=True)
     fr = np.stack([cv2.imdecode(b, cv2.IMREAD_COLOR)[:, :, ::-1] for b in a["jpegs"]])
     return fr, float(a["fps"])

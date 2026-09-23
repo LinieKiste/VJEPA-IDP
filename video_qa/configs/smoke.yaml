@@ -2,6 +2,8 @@
 # save) end-to-end on data/smoke.json (sample_video.mp4 repeated). Not for real
 # training — just proves the loop runs and saves. Run from project root:
 #   .venv/bin/python video_qa/train.py --config video_qa/configs/smoke.yaml
+# NOTE: data/smoke.json and sample_video.mp4 are not in the repo (removed in the
+# handover cleanup); recreate both locally to run this.
 output_dir: runs/smoke
 
 encoder:

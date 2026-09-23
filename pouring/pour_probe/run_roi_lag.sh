@@ -11,9 +11,10 @@ set -euo pipefail
 
 cd "$(dirname "$0")"
 PY=../../.venv/bin/python
-CENTER=/home/casimir/.cache/pour_probe/clips_frames288
-ROI=/home/casimir/.cache/pour_probe/clips_frames288_roi
-LOG=/home/casimir/.cache/pour_probe/roi_lag_logs
+CACHE=${POUR_CACHE:-$HOME/.cache/pour_probe}
+CENTER=$CACHE/clips_frames288
+ROI=$CACHE/clips_frames288_roi
+LOG=$CACHE/roi_lag_logs
 mkdir -p "$LOG"
 
 echo "### [1/4] center-crop CAM2 @ lag 0.7  ($(date +%H:%M))"

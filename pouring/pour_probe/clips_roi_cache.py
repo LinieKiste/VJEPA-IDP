@@ -33,11 +33,12 @@ import cv2
 import decord
 import numpy as np
 from tqdm import tqdm
+from paths import CACHE_ROOT
 
 ROOT = Path(__file__).resolve().parents[2]
 CLIPS = ROOT / "datasets" / "pouring_processed" / "clips"
 CACHE = Path(os.environ.get("POUR_ROI_FRAMES_DIR",
-                            "/home/casimir/.cache/pour_probe/clips_frames288_roi"))
+                            str(CACHE_ROOT / "clips_frames288_roi")))
 MSMALL = 160  # motion computed at this short-side resolution (speed)
 
 

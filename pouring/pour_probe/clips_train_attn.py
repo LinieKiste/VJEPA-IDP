@@ -35,9 +35,10 @@ from sklearn.metrics import mean_absolute_error, r2_score
 
 from _encoder import load_encoder
 from head import build_head, set_pooler_trainable, warm_start_from_ek100
+from paths import CACHE_ROOT
 
 FRAMES_DIR = Path(os.environ.get("POUR_FRAMES288_DIR",
-                                 "/home/casimir/.cache/pour_probe/clips_frames288"))
+                                 str(CACHE_ROOT / "clips_frames288")))
 MEAN = torch.tensor([0.485, 0.456, 0.406]).view(1, 3, 1, 1, 1)
 STD = torch.tensor([0.229, 0.224, 0.225]).view(1, 3, 1, 1, 1)
 

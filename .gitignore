@@ -24,13 +24,6 @@ runs/
 *.avi
 *.mov
 
-# The mlflow store is NOT regenerable — reproducing its 177 runs is weeks of GPU — but the
-# binary db cannot be pushed: GitHub's secret scanner reads a 32-hex mlflow run_uuid that
-# happens to follow the bytes "AC" in a sqlite page as a Twilio Account SID. So the RUNS
-# are tracked as CSV in mlflow_export/ (regenerate with pour_probe/mlflow_export.py) and
-# the logged artifacts as mlruns/. Keep the db itself local.
-mlflow.db
-
 # Experiment artifacts & caches (regenerable)
 egoper_probe/features/
 exprt_probe/features/
@@ -44,7 +37,7 @@ qc_*.png
 qc_*.pdf
 **/qc/
 # …except the curated copies the slide deck actually renders (synced by make_figs.py)
-!presentation/assets/qc_*.png
+!presentations/presentation/assets/qc_*.png
 
 # External reference repos cloned for reading only (each has its own .git)
 third_party/
@@ -65,3 +58,6 @@ node_modules/
 
 # Notebook checkpoints
 .ipynb_checkpoints/
+
+# …and the (re-encoded, ~4 MB) demo videos the final deck plays
+!presentations/presentation_final/public/*.mp4

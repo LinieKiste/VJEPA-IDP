@@ -19,10 +19,11 @@ import cv2
 import decord
 import numpy as np
 from tqdm import tqdm
+from paths import CACHE_ROOT
 
 ROOT = Path(__file__).resolve().parents[2]
 CLIPS = ROOT / "datasets" / "pouring_processed" / "clips"
-CACHE = Path(os.environ.get("POUR_FRAMES288_DIR", "/home/casimir/.cache/pour_probe/clips_frames288"))
+CACHE = Path(os.environ.get("POUR_FRAMES288_DIR", str(CACHE_ROOT / "clips_frames288")))
 
 
 def crop_sq(img, size=288):

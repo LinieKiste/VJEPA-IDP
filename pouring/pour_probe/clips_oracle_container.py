@@ -32,9 +32,10 @@ import numpy as np
 from sklearn.linear_model import Ridge
 from sklearn.metrics import mean_absolute_error, r2_score
 from sklearn.model_selection import GroupKFold
+from paths import CACHE_ROOT
 
 FEAT = Path(os.environ.get("POUR_CLIPS_FEATURES_DIR",
-                           "/home/casimir/.cache/pour_probe/clips_feats"))
+                           str(CACHE_ROOT / "clips_feats")))
 
 
 def load(cams, target):

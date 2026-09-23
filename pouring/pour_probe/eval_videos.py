@@ -38,12 +38,13 @@ import torch
 
 import clips_train_attn as ca
 from clips_cnn_baseline import FOLDS, LAG_FLOW
+from paths import CACHE_ROOT
 
 ROOT = Path(__file__).resolve().parents[2]
 CLIPS_DIR = ROOT / "datasets/pouring_processed/clips"
 EXT_DIR = ROOT / "datasets/eval/videos"
 EXT_GT = ROOT / "datasets/eval/gt.csv"
-CACHE = Path("/home/casimir/.cache/pour_probe")
+CACHE = CACHE_ROOT
 PRED_NPZ = CACHE / "eval_videos_preds.npz"
 OUT_DIR = ROOT / "datasets/eval/demo_videos"
 
@@ -441,7 +442,7 @@ def infer_sow(device="cuda"):
     print(f"  target norm from {len(tr)} training windows: "
           f"mean {ymean:.1f} mL, std {ystd:.1f} mL")
 
-    a = np.load(Path("/home/casimir/.cache/pour_probe/sow_targets") / f"{SOW_ITEM}.npz",
+    a = np.load((CACHE_ROOT / "sow_targets") / f"{SOW_ITEM}.npz",
                 allow_pickle=True)
     lam, r_meas = a["lam"], float(a["r_cm"])
     r_est = float(lam[-1] / (4 * SOW_BETA))          # their Eq. (6), no measurement

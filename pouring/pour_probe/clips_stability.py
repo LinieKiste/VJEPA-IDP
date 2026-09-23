@@ -30,7 +30,7 @@ Three things are measured, because "the curve looks smooth" is not evidence:
 
     .venv/bin/python pouring/pour_probe/clips_stability.py            # 256 model
     .venv/bin/python pouring/pour_probe/clips_stability.py --img_size 384 \
-        --frames_dir /home/casimir/.cache/pour_probe/clips_frames416 --tag res384
+        --frames_dir ~/.cache/pour_probe/clips_frames416 --tag res384
     .venv/bin/python pouring/pour_probe/clips_stability.py --plot     # figures only
 """
 from __future__ import annotations
@@ -40,8 +40,9 @@ import os
 from pathlib import Path
 
 import numpy as np
+from paths import CACHE_ROOT
 
-CACHE = Path("/home/casimir/.cache/pour_probe")
+CACHE = CACHE_ROOT
 OUTDIR = Path(__file__).resolve().parents[2] / "datasets/eval/figs"
 WINDOW_S, NUM_FRAMES, LAG = 1.0, 16, 0.7
 

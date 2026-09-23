@@ -41,11 +41,12 @@ import clips_cnn_baseline as cb          # FOLDS, LAG_FLOW, cv_r2
 import clips_train_attn as ca            # load_clips, build_windows
 import sow_model as sm
 import sow_physics as sp
+from paths import CACHE_ROOT
 
 ROOT = Path(__file__).resolve().parents[2]
 CLIPS_DIR = ROOT / "datasets/pouring_processed/clips"
 CACHE = Path(os.environ.get("POUR_SOW_FEATS_DIR",
-                            "/home/casimir/.cache/pour_probe/clips_sow_feats"))
+                            str(CACHE_ROOT / "clips_sow_feats")))
 
 
 def extract(cam, device="cuda"):

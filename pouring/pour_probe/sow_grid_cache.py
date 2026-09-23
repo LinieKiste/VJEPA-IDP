@@ -31,11 +31,12 @@ from pathlib import Path
 import numpy as np
 
 import sow_targets as st
+from paths import CACHE_ROOT
 
 ROOT = Path(__file__).resolve().parents[2]
 SOW = ROOT / "datasets/sound-of-water"
 CACHE = Path(os.environ.get("POUR_SOW_FRAMES_DIR",
-                            "/home/casimir/.cache/pour_probe/sow_frames288"))
+                            str(CACHE_ROOT / "sow_frames288")))
 SIZE = 288
 # dataset-median container box (x0,y0,x1,y1) for videos without an annotation
 MEDIAN_BOX = np.array([76.9, 312.7, 167.8, 465.1], np.float32)

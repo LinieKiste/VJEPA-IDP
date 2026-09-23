@@ -1,4 +1,4 @@
-"""Attentive **regression** head for UWLPD pouring flow/volume, warm-started from the EK100 probe.
+"""Attentive **regression** head for pouring flow/volume, warm-started from the EK100 probe.
 
 Wraps V-JEPA 2's ``AttentiveClassifier`` (attentive pooler + linear) with ``num_classes=1`` so
 the linear is a single regression output. The pooler is optionally warm-started from the

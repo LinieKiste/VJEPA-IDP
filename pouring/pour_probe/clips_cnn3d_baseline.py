@@ -36,9 +36,10 @@ import torch.nn as nn
 
 import clips_cnn_baseline as cb          # FOLDS, LAG_FLOW, cv_r2 — identical protocol
 import clips_train_attn as ca            # load_clips, build_windows — identical windows
+from paths import CACHE_ROOT
 
 CACHE = Path(os.environ.get("POUR_CNN3D_FEATS_DIR",
-                            "/home/casimir/.cache/pour_probe/clips_cnn3d_feats"))
+                            str(CACHE_ROOT / "clips_cnn3d_feats")))
 # Kinetics-400 video-model normalization (hand-rolled: weights.transforms() would also
 # re-resize, silently overriding the crop geometry we share with the V-JEPA probe).
 KMEAN = torch.tensor([0.43216, 0.394666, 0.37645]).view(1, 3, 1, 1, 1)
