@@ -20,7 +20,9 @@ stages, with a human check between them:
 - `trials.csv`: trial ↔ video mapping, the container pair, exclusion flags
 - `events.csv`: detector output; it seeds `annotations.json` and carries the `exclude` column
 
-`run_ocr.py` needs the `OCR_Scale_REader` submodule at the repo root (private repo).
+`run_ocr.py` needs the `OCR_Scale_REader` submodule at the repo root (private repo) — it is
+the only script that does. `lcd_ocr.py`, which does the actual reading, is self-contained:
+its seven-segment geometry is inlined, so it runs without the submodule.
 
 **Scale physics worth knowing:** the cup is tared to ≈0 g, the pour ramps up, and the plateau
 is the poured mass. Lifting the cup off makes the reading go negative, but the OCR can't see

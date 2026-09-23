@@ -3,10 +3,8 @@ V-JEPA 2 flow probe, against the scale.
 
     ../.venv/bin/python figs_src/bland_altman.py   ->  public/bland_altman.png
 
-Inputs are the tracked bundle under ../presentation/data/ (one level up: the
-interim deck's `data/`; the same
-`headline_preds.npz` the interim deck's figures read), so this regenerates from a
-bare clone.
+Inputs are the tracked bundle under ../data/ (`headline_preds.npz` plus the clip
+manifest), so this regenerates from a bare clone.
 
 Conventions, both settled in CLAUDE.md:
   * predicted total = trapezoid integral of the predicted flow curve extended to
@@ -26,7 +24,7 @@ import numpy as np
 import pandas as pd
 
 HERE = Path(__file__).resolve().parent
-DATA = HERE.parent.parent / "presentation" / "data"
+DATA = HERE.parent / "data"
 OUT = HERE.parent / "public" / "bland_altman.png"
 
 BLUE = "#0065bd"        # accent / TUM blue

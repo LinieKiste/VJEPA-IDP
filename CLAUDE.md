@@ -38,8 +38,12 @@ bar — a working, honest result is.
   Removed (still in git history): the UWLPD-era `dataset/extract/pool/train/attn_map.py` +
   `mapping.json` + `qual/`, `mlflow_migrate.py`, the pilot `events_*.csv`, the scratch
   notebooks, and the pptx template. The deck's demo mp4s are now tracked (gitignore exception).
-  `OCR_Scale_REader` is a PRIVATE repo, and `run_ocr.py` imports from it. HTTPS clone fails
-  without auth, so the SSH URL stays. `data/smoke.json` removed (video_qa smoke test is
+  `OCR_Scale_REader` is a PRIVATE repo. HTTPS clone fails without auth, so the SSH URL stays.
+  **Only `run_ocr.py` still imports it** (`ocr_pipeline.process_video` + `BACKENDS`);
+  `lcd_ocr.py` was freed 2026-09-22 by inlining `SEGMENT_BOXES`/`SEGMENT_ORDER`/
+  `DIGIT_PATTERNS` verbatim from `segment_ocr.py` (verified identical), so our own OCR now
+  runs standalone. Fully dropping the submodule would mean vendoring ~430 more lines of the
+  supervisor's code — deliberately NOT done. `data/smoke.json` removed (video_qa smoke test is
   local-only). Direct deps (opencv, numpy, scipy, sklearn, pandas, tqdm, pillow) added to
   `pyproject` + `uv.lock` 2026-09-20 WITHOUT an install test (no `.venv` on the laptop then).
 - **Storage:** large datasets on the **Storage HDD** (1.8 TB NTFS, `/mnt/storage`, fstab
@@ -58,8 +62,10 @@ bar — a working, honest result is.
   `mlflow ui --backend-store-uri sqlite:////home/casimir/UNI/SS_26/idp/mlflow.db`.
   **The db IS tracked in git** (pushed via the push-protection "false positive" bypass —
   GitHub's secret scanner flags a 32-hex run_uuid after the bytes `AC` as a Twilio SID).
-  Artifact paths in the db are ABSOLUTE to this machine, so a clone elsewhere shows metrics
-  but has no artifacts (`mlruns/` was removed in the handover cleanup).
+  Artifact paths in the db are ABSOLUTE and point into the deleted `mlruns/` (removed in
+  commit `1da7b81`). **This costs almost nothing:** only 5 of 210 runs ever logged artifacts,
+  10 PNGs, all `exprt_action_probe` confusion/compare plots; no pouring run has any. They
+  are recoverable via `git show 1da7b81^:mlruns/...`. All metrics/params are in the db.
 - **Workflow discipline:** pilot-first, build small QC utilities, get user sign-off at
   "gates" before any compute-heavy batch. Keep datasets pristine — extract writable working
   copies, never chmod/modify originals.
@@ -851,12 +857,14 @@ Custom LLaVA-style loop aligning the frozen V-JEPA 2 encoder with Qwen2.5-7B (QL
 video QA; 3-stage visual instruction tuning. **This dir is the source of the shared
 `build_encoder`.** Deviations for 16 GB: QLoRA, small public datasets, 256px/8 frames.
 
-## Presentations (both decks now under `presentations/`)
+## Presentations (`presentations/`)
 
-- **`presentations/presentation/`** — interim English deck (~47 slides), `pages/` split by
-  concern, 19 figures via `make_figs.py` (hand-transcribed numbers — the single place to fix
-  one). Builds from a bare clone; `data/` (4.4 MB) mirrors the non-git figure inputs.
-  **Its README is the operational guide.**
+**The interim English deck (`presentations/presentation/`, ~47 slides, `make_figs.py`) was
+DELETED in the handover cleanup (2026-09-22)** — only the final talk ships. It is still in
+git history. Its tracked figure inputs `headline_preds.npz` + `clips_manifest.csv` were moved
+to `presentations/presentation_final/data/`, which `figs_src/bland_altman.py` now reads; the
+`clip_curves/` and `frames/` bundles went with the deck.
+
 - **`presentations/presentation_final/`** — the final talk deck (14.08.2026), local
   `theme-tum` Slidev theme reproducing the TUM pptx template. **Its README is the
   authority** on the theme, layouts, citations and gotchas.

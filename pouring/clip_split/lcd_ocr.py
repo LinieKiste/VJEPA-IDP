@@ -25,8 +25,9 @@ This reader exploits what those don't:
     ratio image (p90-p10) at multiple scales; peaks = digit cells. Verified
     on trials 5/25/26 incl. the blurry portrait video.
 
-Segment geometry (SEGMENT_BOXES / DIGIT_PATTERNS) is reused from the
-supervisor's segment_ocr.py. Drop-in compatible with ocr_pipeline.process_video
+Segment geometry (SEGMENT_BOXES / DIGIT_PATTERNS) is inlined below — it used to be
+imported from the supervisor's segment_ocr.py, which made this module unusable
+without the private OCR_Scale_REader submodule. Drop-in compatible with ocr_pipeline.process_video
 as a *stateful* backend object (register in ocr_pipeline.BACKENDS per video):
 preprocess_crop(frame, roi, invert) -> gray crop, read_digits(crop) -> (text, conf).
 
@@ -38,9 +39,33 @@ of readings plausible (<=500 g); ~2-3 ms/frame (~50x faster than tesseract).
 import cv2
 import numpy as np
 
-# supervisor's segment geometry (run_ocr.py puts OCR_Scale_REader/video_processing
-# on sys.path before importing us)
-from segment_ocr import SEGMENT_BOXES, SEGMENT_ORDER, DIGIT_PATTERNS
+# Seven-segment geometry, inlined from the supervisor's segment_ocr.py so this
+# module stands alone (the OCR_Scale_REader submodule is private). Each entry is
+# the fractional (x0, y0, x1, y1) sample box within a digit's own bounding box.
+SEGMENT_BOXES = {
+    'A': (0.20, 0.02, 0.80, 0.13),   # top
+    'B': (0.78, 0.14, 1.00, 0.46),   # top-right
+    'C': (0.78, 0.54, 1.00, 0.86),   # bottom-right
+    'D': (0.20, 0.87, 0.80, 0.98),   # bottom
+    'E': (0.00, 0.54, 0.22, 0.86),   # bottom-left
+    'F': (0.00, 0.14, 0.22, 0.46),   # top-left
+    'G': (0.20, 0.465, 0.80, 0.535), # middle
+}
+SEGMENT_ORDER = ('A', 'B', 'C', 'D', 'E', 'F', 'G')
+
+# Standard seven-segment digit encodings (True = segment lit), in SEGMENT_ORDER.
+DIGIT_PATTERNS = {
+    (1, 1, 1, 1, 1, 1, 0): '0',
+    (0, 1, 1, 0, 0, 0, 0): '1',
+    (1, 1, 0, 1, 1, 0, 1): '2',
+    (1, 1, 1, 1, 0, 0, 1): '3',
+    (0, 1, 1, 0, 0, 1, 1): '4',
+    (1, 0, 1, 1, 0, 1, 1): '5',
+    (1, 0, 1, 1, 1, 1, 1): '6',
+    (1, 1, 1, 0, 0, 0, 0): '7',
+    (1, 1, 1, 1, 1, 1, 1): '8',
+    (1, 1, 1, 1, 0, 1, 1): '9',
+}
 
 CALIB_FRAMES = 150      # frames sampled for the background model
 BG_PCT = 98             # background = per-pixel p98 (unlit segments are bright; 98 not 90

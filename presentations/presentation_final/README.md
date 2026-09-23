@@ -10,7 +10,7 @@ pnpm dev      # http://localhost:3030
 pnpm build    # static SPA into dist/
 ```
 
-The interim deck lives in `../presentation/` (also under `presentations/`) and is untouched.
+The earlier interim deck was removed in the handover cleanup; it is still in git history.
 
 ## How the theme was derived
 
