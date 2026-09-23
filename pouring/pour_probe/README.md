@@ -12,6 +12,35 @@ All runs log to mlflow (`mlflow_util.setup()`, experiments `pour_probe_*`). Cach
 `$POUR_CACHE` (default `~/.cache/pour_probe`, see `paths.py`). Run the scripts from the repo
 root. Every script's docstring gives its purpose, usage and the result it produced.
 
+## Reproducing the headline numbers
+
+```bash
+P=.venv/bin/python; D=pouring/pour_probe
+$P $D/clips_extract.py                         # mean-pool features, both cams (GPU)
+$P $D/clips_eval_protocol.py --cam both        # ridge + controls, skill scores (CPU, ~1 min)
+$P $D/clips_grid_cache.py --cam CAM2           # 288-px frame cache for the attentive probe
+$P $D/clips_grid_cache.py --cam CAM3
+
+# attentive FLOW probe, one run per fold (GPU, ~80 min each). Folds = held-out trials,
+# defined in clips_cnn_baseline.FOLDS: A=8,13,21,24  B=7,9,11,12  C=5,15,16,25,26  D=17,18,20,22,27
+$P $D/clips_train_attn.py --target flow --cam both --lag_s 0.7 \
+    --val_trials 8,13,21,24 --fold foldA --minutes 60        # ...same for B, C, D
+
+# attentive VOLUME probe, same four folds, no lag
+$P $D/clips_train_attn.py --target volume --cam both --lag_s 0 \
+    --val_trials 8,13,21,24 --fold volA --minutes 80         # ...same for B, C, D
+
+$P $D/clips_headline_metrics.py                # 4-fold metrics in g/s and g
+```
+
+`--fold` must be `fold<X>` (flow) / `vol<X>` (volume): `clips_headline_metrics.py` loads the
+checkpoints by those names. `run_overnight.sh` runs the volume folds as a batch.
+
+**Known issue:** `clips_eval_protocol.py::totals_from_flow` integrates the flow curve between
+window *centres*, which drops the first and last half-window, so per-pour totals come out
+~12 g low. Against the scale's final reading the attentive probe scores **26.2 g** MAE, not the
+23.2 g that `clips_headline_metrics.py` prints (it imports the same function). `eval_videos.py::cumulative()` uses the corrected clip-bound integral.
+
 ## Script map
 
 **Shared building blocks**
