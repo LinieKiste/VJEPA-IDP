@@ -41,12 +41,11 @@ export const bib = {
     url: 'https://openreview.net/forum?id=BZ5a1r-kVsf',
   },
   vjepa: {
-    // Zotero hat nur Titel + Autoren (kein Venue, keine ID); TMLR/arXiv-Angabe
-    // ergänzt und noch ungeprüft.
+    // Venue as in the citation of github.com/facebookresearch/jepa (checked 2026-09-29).
     kind: 'paper',
     authors: 'A. Bardes, Q. Garrido, J. Ponce, X. Chen, M. Rabbat, Y. LeCun, M. Assran, N. Ballas',
     title: 'Revisiting Feature Prediction for Learning Visual Representations from Video',
-    venue: 'TMLR 2024, arXiv:2404.08471',
+    venue: 'arXiv:2404.08471',
     year: 2024,
     url: 'https://arxiv.org/abs/2404.08471',
     short: 'Bardes et al. 2024',
@@ -71,7 +70,7 @@ export const bib = {
     short: 'Mur-Labadia et al. 2026',
   },
   dinov3: {
-    // NICHT IN ZOTERO — arXiv-ID aus dem Gedächtnis, vor dem Vortrag prüfen.
+    // Not in Zotero; title, first author and arXiv ID verified on arxiv.org 2026-09-29.
     kind: 'paper',
     authors: 'O. Siméoni et al.',
     title: 'DINOv3',
@@ -122,7 +121,7 @@ export const bib = {
     short: 'Huang et al. 2024',
   },
   egoper: {
-    // Zotero hat nur Titel + Autoren; Venue (CVPR 2024) ergänzt, ungeprüft.
+    // Venue as in the citation of github.com/robert80203/EgoPER_official (checked 2026-09-29).
     kind: 'paper',
     authors: 'S.-P. Lee, Z. Lu, Z. Zhang, M. Hoai, E. Elhamifar',
     title: 'Error Detection in Egocentric Procedural Task Videos',
@@ -142,12 +141,12 @@ export const bib = {
     short: 'Xu et al. 2025',
   },
   groundingdino: {
-    // NICHT IN ZOTERO — arXiv-ID aus dem Gedächtnis, vor dem Vortrag prüfen.
+    // Not in Zotero; as in the citation of github.com/IDEA-Research/GroundingDINO (checked 2026-09-29).
     kind: 'paper',
     authors: 'S. Liu et al.',
     title:
       'Grounding DINO: Marrying DINO with Grounded Pre-Training for Open-Set Object Detection',
-    venue: 'ECCV 2024, arXiv:2303.05499',
+    venue: 'arXiv:2303.05499',
     year: 2023,
     url: 'https://arxiv.org/abs/2303.05499',
   },

@@ -870,4 +870,11 @@ to `presentations/presentation_final/data/`, which `figs_src/bland_altman.py` no
   authority** on the theme, layouts, citations and gotchas.
 
 ## Misc
-- (Add homeless notes here.)
+- **Final documentation (due ~02.10.2026, Patrick's emails 28/29.09.):** `DOKUMENTATION.md` in
+  German, 5–10 pages with pictures, also uploaded to koinon as a PDF (<100 MB, attachments
+  still to be decided). Structure: 1 Einleitung · 2 Vorgehen (chronological, one subsection
+  per folder, each split into Code / Entwicklung / Ergebnisse) · 3 Hinweise (AI-generated
+  code, reproducibility, decisions). Patrick wants primary sources named explicitly. Keep all
+  existing code as-is; nothing gets restored from the cleanup. Pivot framing: pouring
+  estimation is a lower-level signal that a higher-level anomaly framework could use as
+  auxiliary input.
