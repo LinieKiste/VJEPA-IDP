@@ -1,4 +1,6 @@
-# IDP SS26: Exploration von JEPA-Architekturen zur Anomalidetektion in Alltagsaktivitäten
+# Exploration von JEPA-Architekturen zur Anomalieerkennung in Alltagsaktivitäten
+
+Ausführlichere Erklärungen gibt es in [DOKUMENTATION.md](DOKUMENTATION.md).
 
 Sammlung verschiedener Experimente mit V-JEPA.
 Das Projekt besteht aus 2 Hauptphasen: Anomalidetektion mit V-JEPA und Schüttvolumenschätzung.
@@ -59,5 +61,5 @@ $P $D/clips_extract.py                    # Features cachen (GPU)
 $P $D/clips_eval_protocol.py --cam both   # Ridge-Probe + Baselines (CPU, ~1 min)
 ```
 
-Die attentive Probe (Hauptergebnis, ~80 min GPU pro Fold) und alle weiteren Skripte:
+Die attentive Probe und alle weiteren Skripte:
 [`pouring/pour_probe/README.md`](pouring/pour_probe/README.md).
