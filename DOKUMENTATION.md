@@ -255,7 +255,7 @@ erkennt, habe ich das Modell mit einfachen Vergleichsmethoden verglichen, von de
 verstrichenen Zeit über klassische Video-CNNs bis zum Audio-Modell aus The Sound of Water. Danach
 habe ich die Robustheit getestet: andere Kameraperspektive, Zuschnitt auf die Gefäße, höhere
 Auflösung, ein anderes Backbone (DINOv3) und Stabilität bei minimal verschobenen Fenstern.
-Zuletzt kamen Videos außerhalb des Labors dazu. Unterwegs habe ich mehrere eigene Fehler in der
+Zuletzt kamen Videos aus ungesehenen Testumgebungen dazu. Unterwegs habe ich mehrere eigene Fehler in der
 Auswertung gefunden und korrigiert (siehe [Abschnitt 4.1](#41-ki-generierter-code)).
 
 #### Ergebnisse
@@ -264,7 +264,7 @@ die Vergleichsmodelle. Über die Zeit aufsummiert ergibt das die Menge pro Schü
 Mittel 26 g genau, bei typischen Mengen um 140 g. Das Volumen zu einem Zeitpunkt lässt sich
 dagegen fast genauso gut allein aus der verstrichenen Zeit schätzen. V-JEPA trägt hier wenig bei.
 
-![Demo eines Schüttvorgangs aus dem eigenen Labor](docs/img/demo_inhouse.jpg)
+![Demo eines Schüttvorgangs aus dem eigenen Datensatz](docs/img/demo_inhouse.jpg)
 *Standbild aus einem Demo-Video (ungesehener Clip): Flussrate und geschüttete Masse von Waage
 (schwarz), V-JEPA 2 (rot) und DINOv3 (blau). Der Verlauf stimmt, aber die Gesamtmenge unterschätzt
 V-JEPA bei diesem schnellen Schüttvorgang.*
